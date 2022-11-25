@@ -1,0 +1,118 @@
+[style]
+# https://github.com/google/styleguide/blob/gh-pages/pyguide.md
+based_on_style = google
+
+# The column limit.
+column_limit=119
+
+# Use the Tab character for indentation.
+use_tabs=False
+
+# Indent width used for line continuations.
+continuation_indent_width=4
+
+# The number of spaces required before a trailing comment.
+# This can be a single value (representing the number of spaces
+# before each trailing comment) or list of values (representing
+# alignment column values; trailing comments within a block will
+# be aligned to the first column value that is greater than the maximum
+# line length within the block). For example:
+#
+# With spaces_before_comment=5:
+#
+#   1 + 1 # Adding values
+#
+# will be formatted as:
+#
+#   1 + 1     # Adding values <-- 5 spaces between the end of the
+#             # statement and comment
+#
+# With spaces_before_comment=15, 20:
+#
+#   1 + 1 # Adding values
+#   two + two # More adding
+#
+#   longer_statement # This is a longer statement
+#   short # This is a shorter statement
+#
+#   a_very_long_statement_that_extends_beyond_the_final_column # Comment
+#   short # This is a shorter statement
+#
+# will be formatted as:
+#
+#   1 + 1          # Adding values <-- end of line comments in block
+#                  # aligned to col 15
+#   two + two      # More adding
+#
+#   longer_statement    # This is a longer statement <-- end of line
+#                       # comments in block aligned to col 20
+#   short               # This is a shorter statement
+#
+#   a_very_long_statement_that_extends_beyond_the_final_column  # Comment <-- the end of line comments are aligned based on the line length
+#   short                                                       # This is a shorter statement
+#
+spaces_before_comment=2
+
+# The style for continuation alignment. Possible values are:
+#
+# - SPACE: Use spaces for continuation alignment. This is default behavior.
+# - FIXED: Use fixed number (CONTINUATION_INDENT_WIDTH) of columns
+#   (ie: CONTINUATION_INDENT_WIDTH/INDENT_WIDTH tabs or
+#   CONTINUATION_INDENT_WIDTH spaces) for continuation alignment.
+# - VALIGN-RIGHT: Vertically align continuation lines to multiple of
+#   INDENT_WIDTH columns. Slightly right (one tab or a few spaces) if
+#   cannot vertically align continuation lines with indent characters.
+continuation_align_style=VALIGN-RIGHT
+
+# Put closing brackets on a separate line, dedented, if the bracketed
+# expression can't fit in a single line. Applies to all kinds of brackets,
+# including function definitions and calls. For example:
+#
+#   config = {
+#       'key1': 'value1',
+#       'key2': 'value2',
+#   }        # <--- this bracket is dedented and on a separate line
+#
+#   time_series = self.remote_client.query_entity_counters(
+#       entity='dev3246.region1',
+#       key='dns.query_latency_tcp',
+#       transform=Transformation.AVERAGE(window=timedelta(seconds=60)),
+#       start_ts=now()-timedelta(days=3),
+#       end_ts=now(),
+#   )        # <--- this bracket is dedented and on a separate line
+dedent_closing_brackets=True
+
+# Join short lines into one line. E.g., single line 'if' statements.
+join_multiple_lines=False
+
+# Split before arguments if the argument list is terminated by a
+# comma.
+split_arguments_when_comma_terminated=True
+
+# Split before arguments, but do not split all subexpressions recursively
+# (unless needed).
+split_all_top_level_comma_separated_values=True
+
+# Split named assignments onto individual lines.
+split_before_named_assigns=True
+
+# Allow splitting before a default / named assignment in an argument list.
+allow_split_before_default_or_named_assigns=True
+
+# Allow splits before the dictionary value.
+allow_split_before_dict_value=True
+
+# Disable the heuristic which places each list element on a separate line
+# if the list is comma-terminated.
+disable_ending_comma_heuristic=False
+
+# Place each dictionary entry onto its own line.
+each_dict_entry_on_separate_line=True
+
+# Require multiline dictionary even if it would normally fit on one line.
+# For example:
+#
+#   config = {
+#       'key1': 'value1'
+#   }
+force_multiline_dict=True
