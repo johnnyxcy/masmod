@@ -1,6 +1,6 @@
 import unittest
 
-from masmod.symbols.theta import theta, Theta
+from masmod.symbols._theta import theta, Theta
 
 
 class TestTheta(unittest.TestCase):

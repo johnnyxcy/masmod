@@ -4,7 +4,7 @@ import sympy
 
 import typing
 
-from .typings import ValueType, BoundsType
+from ._typings import ValueType, BoundsType
 
 
 class Variable(sympy.Symbol):

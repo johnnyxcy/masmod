@@ -4,8 +4,8 @@ import numpy as np
 import typing
 from varname import varname, ImproperUseError
 from dataclasses import dataclass
-from .variable import Variable
-from .typings import ValueType, BoundsType
+from ._variable import Variable
+from ._typings import ValueType, BoundsType
 
 
 class Eps(Variable):

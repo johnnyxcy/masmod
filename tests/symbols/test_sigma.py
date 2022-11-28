@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from masmod.symbols.sigma import SigmaBlock, Eps, sigma
+from masmod.symbols._sigma import SigmaBlock, Eps, sigma
 
 
 class TestSigma(unittest.TestCase):

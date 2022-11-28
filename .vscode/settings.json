@@ -4,5 +4,6 @@
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.analysis.typeCheckingMode": "basic",
-  "python.linting.mypyEnabled": false
+  "python.linting.mypyEnabled": false,
+  "cSpell.words": ["ipred", "masmod", "sympy"]
 }

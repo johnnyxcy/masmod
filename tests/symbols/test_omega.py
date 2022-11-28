@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from masmod.symbols.omega import OmegaBlock, Eta, omega
+from masmod.symbols._omega import OmegaBlock, Eta, omega
 
 
 class TestOmega(unittest.TestCase):

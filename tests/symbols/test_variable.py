@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-from masmod.symbols.variable import Variable
+from masmod.symbols._variable import Variable
 
 
 class TestVariable(unittest.TestCase):

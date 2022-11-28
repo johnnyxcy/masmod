@@ -1,6 +1,6 @@
 from varname import varname
-from .variable import Variable
-from .typings import ValueType, BoundsType
+from ._variable import Variable
+from ._typings import ValueType, BoundsType
 
 __all__ = ["theta", "Theta"]
 
