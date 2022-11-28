@@ -62,8 +62,11 @@ class PredRoutine(BaseRoutine):
         if "pred" not in self.__class__.__dict__:
             raise AttributeError("PredRoutine 需要指定函数 pred，请查看文档获取更多信息 TODO:")
 
-        cls_def_code = inspect.getsource(self.__class__)
+        source_code = inspect.getsource(self.__class__)
         auto_diff_gen = PredAutoDiffGenerator(
-            cls_def_code=cls_def_code, expr_context=self._expr_context, const_context=self._const_context
+            source_code=source_code,
+            expr_context=self._expr_context,
+            const_context=self._const_context,
+            global_context=self._global_context
         )
         auto_diff_gen.gen()
