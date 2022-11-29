@@ -5,7 +5,7 @@ import pandas as pd
 
 from masmod.symbols import theta, omega, sigma
 from masmod.module import PredModule
-from masmod.functional import exp
+import masmod.functional as ff
 
 
 class EmaxModel(PredModule):
@@ -23,11 +23,15 @@ class EmaxModel(PredModule):
         self.data = pd.read_csv(pathlib.Path(__file__).parent.joinpath("dataEmax.csv"))
         self.data = self.data[self.data["MDV"] == 0]
 
-    def pred(self, t) -> None:
-        em = self.theta_em * exp(self.eta_em)
-        et = self.theta_et50 * exp(self.eta_et50)
+    def pred(self, t):
+
+        em = self.theta_em * ff.exp(self.eta_em)
+        et = self.theta_et50 * ff.exp(self.eta_et50)
 
         effect = (em * t) / (et + t)
+
+        # if self.col("MDV") == 0:
+        #     self.ipred = effect * 2
 
         self.ipred = effect
 
@@ -38,3 +42,6 @@ class TestEmaxModel(unittest.TestCase):
 
     def test_parse(self) -> None:
         model = EmaxModel()
+
+        with open("./masmodsub.cc", mode="w", encoding="utf-8") as f:
+            f.write(model.translated)

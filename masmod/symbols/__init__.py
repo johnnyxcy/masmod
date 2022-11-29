@@ -8,6 +8,6 @@ from ._sigma import sigma
 
 ExprContext = VarContext[sympy.Expr]
 ConstContext = VarContext[int | float | bool | str]
-GlobalContext = VarContext[typing.Any]
+AnyContext = VarContext[typing.Any]
 
-__all__ = ["theta", "omega", "sigma", "ExprContext", "ConstContext", "GlobalContext"]
+__all__ = ["theta", "omega", "sigma", "ExprContext", "ConstContext", "AnyContext"]

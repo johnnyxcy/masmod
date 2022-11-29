@@ -3,8 +3,8 @@ from __future__ import division, unicode_literals
 import math
 import os
 
-DEFAULT_ALPHABET = "_-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-DEFAULT_SIZE = 6
+DEFAULT_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+DEFAULT_SIZE = 8
 
 
 def _do_generate(random_bytes: int) -> bytearray:

@@ -4,7 +4,9 @@ import sympy
 import typing
 import ast
 from masmod.module._base import BaseModule
+from masmod.symbols import AnyContext
 from masmod.transformer.autodiff import AutoDiffNodeTransformer
+from masmod.translator.cc_trans import CCTranslator, FuncSignature, ValueType
 
 
 class PredModule(BaseModule):
@@ -14,9 +16,17 @@ class PredModule(BaseModule):
         self._ipred: sympy.Expr | None = None
         self._y: sympy.Expr | None = None
 
+        self.__translated: str | None = None
+
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.register_pred()
+        self._post_init_hook()
+
+    @property
+    def translated(self) -> str:
+        if self.__translated is None:
+            raise AttributeError("Invalid Attribute")
+        return self.__translated
 
     @property
     def ipred(self) -> sympy.Expr:
@@ -55,10 +65,10 @@ class PredModule(BaseModule):
         return super().__getattribute__(__name)
 
     @abc.abstractmethod
-    def pred(self, T: float) -> None:
+    def pred(self, t: float) -> None:
         pass
 
-    def register_pred(self) -> None:
+    def _post_init_hook(self) -> None:
         if "pred" not in self.__class__.__dict__:
             raise AttributeError("PredRoutine 需要指定函数 pred，请查看文档获取更多信息 TODO:")
 
@@ -80,9 +90,6 @@ class PredModule(BaseModule):
         if not time_param_name:
             raise ValueError("继承的 pred 函数签名不匹配")
 
-        const_context = self._const_context
-        const_context[time_param_name] = sympy.Symbol(time_param_name)
-
         source_code = inspect.getsource(self.__class__)
         parse_code_body = ast.parse(source_code).body
         if len(parse_code_body) != 1:
@@ -90,15 +97,35 @@ class PredModule(BaseModule):
         _cls_def_ast = parse_code_body[0]
         if not isinstance(_cls_def_ast, ast.ClassDef):
             raise TypeError("source_code 不属于 Class Def 类型")
+
+        local_context = AnyContext()
+        local_context["self"] = self._expr_context + self._const_context
+        local_context["t"] = sympy.Symbol("t")
+        result_variables = ["self.ipred", "self.y"]
         for part in _cls_def_ast.body:
-            # 如果是名为 "pred" 的函数
+            # 如果是名为 "pred" 的函数, 处理 autodiff 的逻辑
             if isinstance(part, ast.FunctionDef) and part.name == "pred":
-                _cls_def_ast = typing.cast(
-                    ast.FunctionDef,
-                    AutoDiffNodeTransformer(
-                        expr_context=self._expr_context,
-                        const_context=const_context,
-                        global_context=self._global_context
-                    ).visit(part)
+                transformer = AutoDiffNodeTransformer(
+                    var_context=self._expr_context, local_context=local_context, global_context=self._global_context
                 )
-                print(_cls_def_ast)
+                transformer.visit(part)
+                # TODO: add result variables
+                # for var_name, diff_var_names in transformer.generated_autodiffs.items():
+                #     if var_name in result_variables:
+                #         result_variables.extend(diff_var_names)
+
+        translator = CCTranslator(
+            cls_def=_cls_def_ast,
+            trans_functions={
+                "pred": FuncSignature(args={"t": ValueType.VALUE_TYPE_DOUBLE}, return_type=ValueType.VALUE_TYPE_VOID)
+            },
+            source_code=source_code,
+            var_context=self._expr_context,
+            const_context=self._const_context,
+            reserved_self_attr={
+                "ipred": ValueType.VALUE_TYPE_DOUBLE, "y": ValueType.VALUE_TYPE_DOUBLE
+            },
+            global_context=self._global_context,
+            result_variables=result_variables
+        )
+        self.__translated = "\n".join(translator.translate())

@@ -2,7 +2,7 @@ import typing
 from pandas import DataFrame
 import sympy
 import inspect
-from masmod.symbols import ExprContext, ConstContext, GlobalContext
+from masmod.symbols import ExprContext, ConstContext, AnyContext
 
 
 class PostInitResolver(type):
@@ -20,7 +20,7 @@ class BaseModule(object, metaclass=PostInitResolver):
         super().__init__()
         self._expr_context = ExprContext()
         self._const_context = ConstContext()
-        self._global_context = GlobalContext()
+        self._global_context = AnyContext()
 
     def __post_init__(self) -> None:
         namespace = self.__dict__
