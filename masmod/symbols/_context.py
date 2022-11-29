@@ -8,9 +8,15 @@ T1 = typing.TypeVar("T1")
 
 class VarContext(typing.Generic[T]):
 
-    def __init__(self) -> None:
+    def __init__(self, d: typing.Dict[str, T] = {}) -> None:
         super().__init__()
-        self._d: typing.Dict[str, T] = {}
+        self._d: typing.Dict[str, T] = d
+
+    def __repr__(self) -> str:
+        return self._d.__repr__()
+
+    def __str__(self) -> str:
+        return self._d.__str__()
 
     def as_dict(self) -> typing.Dict[str, typing.Any]:
         return self._d
@@ -27,12 +33,6 @@ class VarContext(typing.Generic[T]):
     def __setitem__(self, __name: str, __value: typing.Any) -> None:
         self._d[__name] = __value
 
-    def __setattr__(self, __name: str, __value: typing.Any) -> None:
-        if hasattr(self, "__orig_class__") and isinstance(__value, self.__orig_class__.__args__[0]):
-            super().__getattribute__("_d")[__name] = __value
-        else:
-            super().__setattr__(__name, __value)
-
     def __getattribute__(self, __name: str) -> typing.Any:
         if __name in super().__getattribute__("_d").keys():
             return super().__getattribute__("_d")[__name]
@@ -41,6 +41,5 @@ class VarContext(typing.Generic[T]):
     def __add__(self, o: VarContext[T1]) -> VarContext[T | T1]:
         _d: typing.Dict[str, typing.Any] = self._d.copy()
         _d.update(o._d.copy())
-        context = VarContext[T | T1]()
-        context._d = _d
+        context = VarContext[T | T1](_d)
         return context

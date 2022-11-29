@@ -4,11 +4,11 @@ import numpy as np
 import typing
 from varname import varname, ImproperUseError
 from dataclasses import dataclass
-from ._variable import Variable
-from ._typings import ValueType, BoundsType
+from masmod.symbols._variable import SymVar
+from masmod.symbols._typings import ValueType, BoundsType
 
 
-class Eta(Variable):
+class Eta(SymVar):
     """
     随机效应的变量
     """

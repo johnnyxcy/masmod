@@ -4,10 +4,10 @@ import sympy
 
 import typing
 
-from ._typings import ValueType, BoundsType
+from masmod.symbols._typings import ValueType, BoundsType
 
 
-class Variable(sympy.Symbol):
+class SymVar(sympy.Symbol):
     """包装 sympy.Symbol"""
     __slots__ = ("_init_value", "_bounds", "_fixed")
 
@@ -17,7 +17,7 @@ class Variable(sympy.Symbol):
         init_value: ValueType | None = None,
         bounds: BoundsType | None = None,
         fixed: bool = False
-    ) -> Variable:
+    ) -> SymVar:
         """初始化一个 Variable 对象
 
         Args:
@@ -27,9 +27,9 @@ class Variable(sympy.Symbol):
             fixed (bool): 变量的值是否固定，默认为 False
 
         Returns:
-            Variable: 变量对象
+            VarSymbol: 变量对象
         """
-        instance = typing.cast(Variable, super().__new__(cls, name))
+        instance = typing.cast(SymVar, super().__new__(cls, name))
         instance.init_value = init_value
         instance.bounds = bounds
         instance._fixed = fixed  # readonly

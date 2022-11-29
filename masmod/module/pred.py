@@ -1,0 +1,104 @@
+import abc
+import inspect
+import sympy
+import typing
+import ast
+from masmod.module._base import BaseModule
+from masmod.transformer.autodiff import AutoDiffNodeTransformer
+
+
+class PredModule(BaseModule):
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._ipred: sympy.Expr | None = None
+        self._y: sympy.Expr | None = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.register_pred()
+
+    @property
+    def ipred(self) -> sympy.Expr:
+        if self._ipred is None:
+            raise ValueError("self.ipred 没有定义")
+
+        return self._ipred
+
+    @ipred.setter
+    def ipred(self, ipred: sympy.Expr | int | float) -> None:
+        if isinstance(ipred, int | float):
+            ipred = sympy.Float(ipred)
+        elif not isinstance(ipred, sympy.Expr):
+            raise TypeError("ipred 只能是 int | float | Expr 类型")
+
+        self._ipred = ipred
+
+    @property
+    def y(self) -> sympy.Expr:
+        if self._y is None:
+            raise ValueError("self.y 没有定义")
+        return self._y
+
+    @y.setter
+    def y(self, y: sympy.Expr | int | float) -> None:
+        if isinstance(y, int | float):
+            y = sympy.Float(y)
+        elif not isinstance(y, sympy.Expr):
+            raise TypeError("y 只能是 int | float | Expr 类型")
+
+        self._y = y
+
+    def __getattribute__(self, __name: str) -> typing.Any:
+        if __name == "pred":
+            raise AttributeError("直接调用 pred() 没有意义，请尝试 TODO:提供帮助")
+        return super().__getattribute__(__name)
+
+    @abc.abstractmethod
+    def pred(self, T: float) -> None:
+        pass
+
+    def register_pred(self) -> None:
+        if "pred" not in self.__class__.__dict__:
+            raise AttributeError("PredRoutine 需要指定函数 pred，请查看文档获取更多信息 TODO:")
+
+        # TODO: check signature
+        pred_signature = inspect.signature(self.__class__.__dict__["pred"])
+        pred_signature_params = pred_signature.parameters.items()
+
+        time_param_name: str | None = None
+
+        for index, (param_name, param_obj) in enumerate(pred_signature_params):
+            if index == 0 and param_name != "self":
+                raise AssertionError("第一个参数必须是 self")
+
+            if index == 1:
+                if param_obj.kind != inspect._ParameterKind.POSITIONAL_OR_KEYWORD:
+                    raise AssertionError("时间参数必须是 positional or keyword")
+                time_param_name = param_obj.name
+
+        if not time_param_name:
+            raise ValueError("继承的 pred 函数签名不匹配")
+
+        const_context = self._const_context
+        const_context[time_param_name] = sympy.Symbol(time_param_name)
+
+        source_code = inspect.getsource(self.__class__)
+        parse_code_body = ast.parse(source_code).body
+        if len(parse_code_body) != 1:
+            raise ValueError("Class Def 只能有一个")
+        _cls_def_ast = parse_code_body[0]
+        if not isinstance(_cls_def_ast, ast.ClassDef):
+            raise TypeError("source_code 不属于 Class Def 类型")
+        for part in _cls_def_ast.body:
+            # 如果是名为 "pred" 的函数
+            if isinstance(part, ast.FunctionDef) and part.name == "pred":
+                _cls_def_ast = typing.cast(
+                    ast.FunctionDef,
+                    AutoDiffNodeTransformer(
+                        expr_context=self._expr_context,
+                        const_context=const_context,
+                        global_context=self._global_context
+                    ).visit(part)
+                )
+                print(_cls_def_ast)

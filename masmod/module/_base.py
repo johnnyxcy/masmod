@@ -2,7 +2,7 @@ import typing
 from pandas import DataFrame
 import sympy
 import inspect
-from ...symbols import ExprContext, ConstContext, GlobalContext
+from masmod.symbols import ExprContext, ConstContext, GlobalContext
 
 
 class PostInitResolver(type):
@@ -14,7 +14,7 @@ class PostInitResolver(type):
         return obj
 
 
-class BaseRoutine(object, metaclass=PostInitResolver):
+class BaseModule(object, metaclass=PostInitResolver):
 
     def __init__(self) -> None:
         super().__init__()

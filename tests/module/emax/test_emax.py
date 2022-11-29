@@ -4,11 +4,11 @@ import pathlib
 import pandas as pd
 
 from masmod.symbols import theta, omega, sigma
-from masmod.module import PredRoutine
+from masmod.module import PredModule
 from masmod.functional import exp
 
 
-class EmaxModel(PredRoutine):
+class EmaxModel(PredModule):
 
     def __init__(self) -> None:
         super().__init__()

@@ -1,3 +1,3 @@
-from .routines.pred import PredRoutine
+from masmod.module.pred import PredModule
 
-__all__ = ["PredRoutine"]
+__all__ = ["PredModule"]

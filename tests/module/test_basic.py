@@ -1,12 +1,12 @@
 import unittest
-from masmod.module.routines._base import BaseRoutine
+from masmod.module._base import BaseModule
 
 
-class TestBaseRoutine(unittest.TestCase):
+class TestBaseModule(unittest.TestCase):
 
     def test_no_data(self) -> None:
 
-        class NoDataModel(BaseRoutine):
+        class NoDataModel(BaseModule):
 
             def __init__(self) -> None:
                 super().__init__()
@@ -19,7 +19,7 @@ class TestBaseRoutine(unittest.TestCase):
 
     def test_data_type_error(self) -> None:
 
-        class InvalidDataTypeModel(BaseRoutine):
+        class InvalidDataTypeModel(BaseModule):
 
             def __init__(self) -> None:
                 super().__init__()
