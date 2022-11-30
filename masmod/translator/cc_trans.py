@@ -60,11 +60,10 @@ class ValueType(enum.Enum):
     def from_dtype(cls, dtype: typing.Any) -> ValueType:
         typ: ValueType | None = None
 
-        if pandas.api.types.is_float_dtype(dtype):
-            typ = ValueType.VALUE_TYPE_DOUBLE
-        elif pandas.api.types.is_int64_dtype(dtype):
+        if pandas.api.types.is_int64_dtype(dtype):
             typ = ValueType.VALUE_TYPE_INT
-
+        elif pandas.api.types.is_float_dtype(dtype):
+            typ = ValueType.VALUE_TYPE_DOUBLE
         if typ is None:
             raise TypeError("不支持的 dtype: {0}".format(dtype))
         return typ
@@ -143,7 +142,7 @@ class CCTranslator:
                 if part.name in self._trans_functions.keys():
                     translated.extend(self._do_translate_func(part))
             else:
-                self.__raise(part, NotImplementedError("TODO: 支持 class 功能 {0}".format(part)))
+                self.__raise(part, NotImplementedError("尚不支持 class 功能 {0}".format(part)))
 
         return translated
 
@@ -207,16 +206,18 @@ class CCTranslator:
         translated: typing.List[str] = []
         if self.__locateable(statement):
             translated.append(f"// {self._source_code_lines[statement.lineno - 1].strip()}")
-
         if isinstance(statement, ast.Assign):
             translated.extend(self._do_translate_assign(statement, ctx))
+        elif isinstance(statement, ast.If):
+            translated.extend(self._do_translate_if(statement, ctx))
         else:
-            self.__raise(statement, NotImplementedError("TODO: 支持 statement {0}".format(statement)))
+            self.__raise(statement, NotImplementedError("尚不支持 statement {0}".format(statement)))
 
         return translated
 
     def _do_translate_assign(self, assign: ast.Assign, ctx: Ctx) -> typing.List[str]:
         translated: typing.List[str] = []
+
         targets = assign.targets
 
         if len(targets) != 1:
@@ -237,7 +238,32 @@ class CCTranslator:
         translated.append(f"{target.v} = {value.v};")
         return translated
 
+    def _do_translate_if(self, if_: ast.If, ctx: Ctx) -> typing.List[str]:
+        translated: typing.List[str] = []
+        test_condition = self._do_eval_expr(if_.test, ctx)
+
+        if test_condition.typ != ValueType.VALUE_TYPE_BOOL:
+            self.__raise(if_, TypeError("if 的比较条件必须是 bool 类型"))
+
+        cond_assignment_prefix = "__if"
+        cnt = 1
+        cond_assignment_name = f"{cond_assignment_prefix}_{cnt}"
+        while cond_assignment_name in ctx.keys():
+            cnt += 1
+            cond_assignment_name = f"{cond_assignment_prefix}_{cnt}"
+
+        translated.extend([f"bool {cond_assignment_name} = {test_condition.v};", f"if ({cond_assignment_name})", "{"])
+        # body
+
+        translated.append("}")
+
+        return translated
+
     def _do_eval_expr(self, expr: ast.expr, ctx: Ctx) -> EvaluatedExpr:
+        # 如果是个表达式，直接 eval
+        if isinstance(expr, ast.Expression):
+            return self._do_eval_expr(expr.body, ctx)
+
         # 如果是 Name
         if isinstance(expr, ast.Name):
             _identifier = expr.id
@@ -252,6 +278,26 @@ class CCTranslator:
         if isinstance(expr, ast.Constant):
             return self._do_eval_constant(expr)
 
+        # 如果是一个比较 e.g. a > b
+        if isinstance(expr, ast.Compare):
+            if len(expr.ops) != 1:
+                self.__raise(expr, ValueError("不支持多个 compare operator"))
+
+            if len(expr.comparators) != 1:
+                self.__raise(expr, ValueError("不支持多个比较对象"))
+            left = self._do_eval_expr(expr.left, ctx)
+            ops = self._do_eval_cmpop(expr.ops[0])
+            right = self._do_eval_expr(expr.comparators[0], ctx)
+
+            # TODO: add type validation for left and right
+            if not left.typ or not right.typ:
+                self.__raise(expr, ValueError("无法获取正确的类型"))
+
+            if not (left.typ.is_numeric() and right.typ.is_numeric()) and left.typ != right.typ:
+                self.__raise(expr, TypeError("表达式两边的类型不匹配"))
+
+            return EvaluatedExpr(v=f"{left.v} {ops.v} {right.v}", token=expr, typ=ValueType.VALUE_TYPE_BOOL)
+
         # 如果是属性访问
         if isinstance(expr, ast.Attribute):
             # 访问的对象指针
@@ -265,8 +311,8 @@ class CCTranslator:
                 # 获取 self 属性的类型
                 obj = self._self_ctx[attr]
                 typ: ValueType
-                if isinstance(obj, sympy.Expr):
-                    typ = ValueType.VALUE_TYPE_DOUBLE
+                if isinstance(obj, SymVar) or isinstance(obj, Covariate):
+                    typ = ctx[mask_self_attr(attr)]
                 else:
                     evaluated_const = self._do_eval_constant(ast.Constant(value=obj))
                     if evaluated_const.typ is None:
@@ -327,11 +373,7 @@ class CCTranslator:
             # 根据 oprand 的具体类型
             return EvaluatedExpr(v=f"{op.v}{oprand.v}", typ=oprand.typ, token=expr)
 
-        # 如果是个表达式，直接 eval
-        if isinstance(expr, ast.Expression):
-            return self._do_eval_expr(expr.body, ctx)
-
-        self.__raise(expr, NotImplementedError("TODO: 支持 expression {0}".format(expr)))
+        self.__raise(expr, NotImplementedError("尚不支持 expression {0}".format(expr)))
 
     def _do_eval_constant(self, constant: ast.Constant) -> EvaluatedExpr:
         v: str
@@ -360,7 +402,7 @@ class CCTranslator:
         elif isinstance(operator, ast.Pow):
             self.__raise(operator, ValueError("无法通过 _do_translate_op 处理 power"))
 
-        self.__raise(operator, NotImplementedError("TODO: 支持 operator {0}".format(operator)))
+        self.__raise(operator, NotImplementedError("尚不支持 operator {0}".format(operator)))
 
     def _do_eval_unaryop(self, unary_operator: ast.unaryop) -> EvaluatedExpr:
         if isinstance(unary_operator, ast.UAdd):
@@ -368,7 +410,22 @@ class CCTranslator:
         elif isinstance(unary_operator, ast.USub):
             return EvaluatedExpr(v="-", token=unary_operator)
 
-        self.__raise(unary_operator, NotImplementedError("TODO: 支持 unary_operator {0}".format(unary_operator)))
+        self.__raise(unary_operator, NotImplementedError("尚不支持 unary_operator {0}".format(unary_operator)))
+
+    def _do_eval_cmpop(self, compare_operator: ast.cmpop) -> EvaluatedExpr:
+        if isinstance(compare_operator, ast.Eq):
+            return EvaluatedExpr(v="==", token=compare_operator)
+        elif isinstance(compare_operator, ast.Gt):
+            return EvaluatedExpr(v=">", token=compare_operator)
+        elif isinstance(compare_operator, ast.GtE):
+            return EvaluatedExpr(v=">=", token=compare_operator)
+        elif isinstance(compare_operator, ast.Lt):
+            return EvaluatedExpr(v="<", token=compare_operator)
+        elif isinstance(compare_operator, ast.LtE):
+            return EvaluatedExpr(v="<=", token=compare_operator)
+        elif isinstance(compare_operator, ast.NotEq):
+            return EvaluatedExpr(v="!=", token=compare_operator)
+        self.__raise(compare_operator, NotImplementedError("尚不支持 compare_operator {0}".format(compare_operator)))
 
     def _do_translate_func_signature(self, func_def: ast.FunctionDef, signature: FuncSignature) -> typing.List[str]:
         translated: typing.List[str] = []
@@ -387,7 +444,7 @@ class CCTranslator:
         return translated
 
     def _extract_func_signature(self, func_def: ast.FunctionDef) -> FuncSignature:
-        raise NotImplementedError("TODO: custom function")
+        raise NotImplementedError("尚不支持 custom function")
 
     def _inject_self_to_signature(self, signature: FuncSignature) -> FuncSignature:
         signature_ = deepcopy(signature)
@@ -418,14 +475,15 @@ class CCTranslator:
             self.__raise(arg, NotImplementedError("尚未实现 kwarg 的翻译"))
 
     def _retrieve_vars_from_self(self) -> typing.List[str]:
-        retrieved_vars: typing.List[str] = []
+        retrieved_vars: typing.List[str] = ["// 变量"]
         for var_name in self._var_context.keys():
             retrieved_vars.append(f"{mask_self_attr(var_name)} = std::any_cast<double>(self[\"{var_name}\"]);")
 
+        retrieved_vars.extend(["", "// 数据集中的协变量"])
         for var_name, cov_obj in self._covariate_context.items():
             covariate_dtype = ValueType.from_dtype(cov_obj.series.dtype)
             retrieved_vars.append(
-                f"{mask_self_attr(var_name)} = std::any_cast<{covariate_dtype.value}>(self[\"{var_name}\"])"
+                f"{mask_self_attr(var_name)} = std::any_cast<{covariate_dtype.value}>(self[\"{var_name}\"]);"
             )
 
         # for const_name, const_val in self._const_context.items():

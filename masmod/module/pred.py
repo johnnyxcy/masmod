@@ -103,8 +103,8 @@ class PredModule(BaseModule):
 
         _self_context = self._self_context.copy()
         # inject ipred and y into self pointer
-        _self_context["ipred"] = sympy.Float(0.0)
-        _self_context["y"] = sympy.Float(0.0)
+        _self_context["ipred"] = 0.0
+        _self_context["y"] = 0.0
 
         translator = CCTranslator(
             cls_def=_cls_def_ast,

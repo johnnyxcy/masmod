@@ -25,15 +25,13 @@ class EmaxModel(PredModule):
         self.mdv = covariate(self.data["MDV"])
 
     def pred(self, t):
-        # weight = self.get_data("weight")
-
-        em = self.theta_em * ff.exp(self.eta_em) + self.mdv
+        em = self.theta_em * ff.exp(self.eta_em) * self.mdv
         et = self.theta_et50 * ff.exp(self.eta_et50)
 
         effect = (em * t) / (et + t)
 
-        # if self.col("MDV") == 0:
-        #     self.ipred = effect * 2
+        if self.mdv == 1:
+            effect = 0
 
         self.ipred = effect
 
