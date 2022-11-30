@@ -6,11 +6,13 @@ import enum
 from datetime import datetime
 import sympy
 from dataclasses import dataclass
-import re
-from masmod.symbols import ExprContext, ConstContext, AnyContext
+import pandas.api
+from masmod.symbols import VarContext, AnyContext
+from masmod.symbols._variable import SymVar
+from masmod.symbols._covariate import Covariate
 from masmod.functional import exp, log
 from masmod.translator.sympy_ast_trans import SYMPY_EXP_FUNC_NAME, SYMPY_LOG_FUNC_NAME
-from masmod.utils.mask_self import mask_self_attr, mask_self_get_data
+from masmod.utils.mask_self import mask_self_attr
 
 
 class ValueType(enum.Enum):
@@ -34,24 +36,37 @@ class ValueType(enum.Enum):
         return self == self.VALUE_TYPE_DOUBLE or self == self.VALUE_TYPE_INT or self == self.VALUE_TYPE_LONG
 
     @classmethod
-    def from_constant(cls, const_val: typing.Any) -> ValueType:
+    def from_val(cls, val: typing.Any) -> ValueType:
         typ: ValueType | None = None
 
-        if isinstance(const_val, float):
+        if isinstance(val, float):
             typ = ValueType.VALUE_TYPE_DOUBLE
-        elif isinstance(const_val, bool):
+        elif isinstance(val, bool):
             typ = ValueType.VALUE_TYPE_BOOL
-        elif isinstance(const_val, int):
-            if const_val <= -2147483648 or const_val >= 2147483647:
+        elif isinstance(val, int):
+            if val <= -2147483648 or val >= 2147483647:
                 typ = ValueType.VALUE_TYPE_LONG
             else:
                 typ = ValueType.VALUE_TYPE_INT
-        elif isinstance(const_val, str):
+        elif isinstance(val, str):
             typ = ValueType.VALUE_TYPE_STRING
 
         if typ is None:
-            raise TypeError("不支持的 const 类型: {0}".format(type(const_val)))
+            raise TypeError("不支持的 const 类型: {0}".format(type(val)))
 
+        return typ
+
+    @classmethod
+    def from_dtype(cls, dtype: typing.Any) -> ValueType:
+        typ: ValueType | None = None
+
+        if pandas.api.types.is_float_dtype(dtype):
+            typ = ValueType.VALUE_TYPE_DOUBLE
+        elif pandas.api.types.is_int64_dtype(dtype):
+            typ = ValueType.VALUE_TYPE_INT
+
+        if typ is None:
+            raise TypeError("不支持的 dtype: {0}".format(dtype))
         return typ
 
 
@@ -86,8 +101,8 @@ class CCTranslator:
         cls_def: ast.ClassDef,
         trans_functions: typing.Dict[str, FuncSignature],
         source_code: str,
-        var_context: ExprContext,
-        const_context: ConstContext,
+        var_context: VarContext[SymVar],
+        covariate_context: VarContext[Covariate],
         global_context: AnyContext,
         self_context: AnyContext,
         result_variables: typing.List[str]
@@ -98,7 +113,7 @@ class CCTranslator:
         self._source_code_lines = source_code.splitlines()
 
         self._var_context = var_context
-        self._const_context = const_context
+        self._covariate_context = covariate_context
 
         self._self_ctx = self_context.as_dict()
         # for attr_name, attr_type in self._reserved_self_attr.items():
@@ -116,12 +131,6 @@ class CCTranslator:
         }
 
         self._result_variables = result_variables
-
-    # def translate(self, statements: typing.List[ast.stmt]) -> str:
-    #     translated: typing.List[str] = []
-    #     for stmt in statements:
-    #         translated.extend(self.translate_statement(stmt))
-    #     return "\n".join(translated)
 
     def translate(self) -> typing.List[str]:
         translated: typing.List[str] = [
@@ -158,8 +167,11 @@ class CCTranslator:
         for var_name in self._var_context.keys():
             ctx[mask_self_attr(var_name)] = ValueType.VALUE_TYPE_DOUBLE
 
-        for const_name, const_val in self._const_context.items():
-            ctx[mask_self_attr(const_name)] = ValueType.from_constant(const_val)
+        for cov_name, cov_obj in self._covariate_context.items():
+            ctx[mask_self_attr(cov_name)] = ValueType.from_dtype(cov_obj.series.dtype)
+
+        # for const_name, const_val in self._const_context.items():
+        #     ctx[mask_self_attr(const_name)] = ValueType.from_constant(const_val)
 
         signature = self._inject_result_container_to_signature(signature)
 
@@ -183,9 +195,6 @@ class CCTranslator:
 
         translated.extend(["", "// #region 将 reserved self attr 赋值至 __container"])
         for var_index, result_var_name in enumerate(self._result_variables):
-            found = re.findall(r"self\.(.+)", result_var_name)
-            if len(found) == 1:
-                result_var_name = found[0]
             if result_var_name not in ctx.keys():
                 raise ValueError(f"没有输出 {result_var_name}")
             translated.append(f"__container({var_index}) = {result_var_name}")
@@ -273,22 +282,6 @@ class CCTranslator:
 
         # 如果是函数调用
         if isinstance(expr, ast.Call):
-            # # self.get_data 需要做特殊处理
-            # if isinstance(expr.func, ast.Attribute) and \
-            #     isinstance(expr.func.value, ast.Name) and \
-            #         expr.func.value.id == "self" and \
-            #             expr.func.attr == "get_data":
-
-            #     if len(expr.args) != 1:
-            #         self.__raise(expr, ValueError("self.get_data 只能够有一个入参"))
-
-            #     if not isinstance(expr.args[0], ast.Constant):
-            #         self.__raise(expr.args[0], ValueError("self.get_data 只支持类似于 self.get_data(\"COL_NAME\") 的使用方式"))
-
-            #     evaluated_arg = self._do_eval_expr(expr.args[0], ctx)
-            #     evaluated_arg.
-            #     mask_self_get_data()
-
             # 获取函数名称
             func = self._do_eval_expr(expr.func, ctx)
 
@@ -342,7 +335,7 @@ class CCTranslator:
 
     def _do_eval_constant(self, constant: ast.Constant) -> EvaluatedExpr:
         v: str
-        typ: ValueType = ValueType.from_constant(constant.value)
+        typ: ValueType = ValueType.from_val(constant.value)
 
         if typ in [ValueType.VALUE_TYPE_DOUBLE, ValueType.VALUE_TYPE_INT, ValueType.VALUE_TYPE_LONG]:
             v = str(constant.value)
@@ -429,11 +422,17 @@ class CCTranslator:
         for var_name in self._var_context.keys():
             retrieved_vars.append(f"{mask_self_attr(var_name)} = std::any_cast<double>(self[\"{var_name}\"]);")
 
-        for const_name, const_val in self._const_context.items():
-            val_typ = ValueType.from_constant(const_val)
+        for var_name, cov_obj in self._covariate_context.items():
+            covariate_dtype = ValueType.from_dtype(cov_obj.series.dtype)
             retrieved_vars.append(
-                f"{mask_self_attr(const_name)} = std::any_cast<{val_typ.value}>(self[\"{const_name}\"])"
+                f"{mask_self_attr(var_name)} = std::any_cast<{covariate_dtype.value}>(self[\"{var_name}\"])"
             )
+
+        # for const_name, const_val in self._const_context.items():
+        #     val_typ = ValueType.from_constant(const_val)
+        #     retrieved_vars.append(
+        #         f"{mask_self_attr(const_name)} = std::any_cast<{val_typ.value}>(self[\"{const_name}\"])"
+        #     )
         return retrieved_vars
 
     # def _define_self_struct(self) -> typing.List[str]:

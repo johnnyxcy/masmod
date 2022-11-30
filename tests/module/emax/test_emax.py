@@ -3,7 +3,7 @@ import unittest
 import pathlib
 import pandas as pd
 
-from masmod.symbols import theta, omega, sigma
+from masmod.symbols import theta, omega, sigma, covariate
 from masmod.module import PredModule
 import masmod.functional as ff
 
@@ -20,14 +20,14 @@ class EmaxModel(PredModule):
 
         self.eps = sigma(0.09)
 
-        self.indicator = 0
-
         self.data = pd.read_csv(pathlib.Path(__file__).parent.joinpath("dataEmax.csv"))
-        self.data = self.data[self.data["MDV"] == 0]
+        self.data = self.data[self.data["MDV"] == 0].reset_index()
+        self.mdv = covariate(self.data["MDV"])
 
     def pred(self, t):
         # weight = self.get_data("weight")
-        em = self.theta_em * ff.exp(self.eta_em)
+
+        em = self.theta_em * ff.exp(self.eta_em) + self.mdv
         et = self.theta_et50 * ff.exp(self.eta_et50)
 
         effect = (em * t) / (et + t)

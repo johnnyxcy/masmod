@@ -90,7 +90,10 @@ class PredModule(BaseModule):
             # 如果是名为 "pred" 的函数, 处理 autodiff 的逻辑
             if isinstance(part, ast.FunctionDef) and part.name == "pred":
                 transformer = AutoDiffNodeTransformer(
-                    var_context=self._expr_context, local_context=local_context, global_context=self._global_context
+                    var_context=self._expr_context,
+                    self_context=self._self_context,
+                    local_context=local_context,
+                    global_context=self._global_context
                 )
                 transformer.visit(part)
                 for result_var_name in result_variables:
@@ -100,8 +103,8 @@ class PredModule(BaseModule):
 
         _self_context = self._self_context.copy()
         # inject ipred and y into self pointer
-        _self_context["ipred"] = float(0.0)
-        _self_context["y"] = float(0.0)
+        _self_context["ipred"] = sympy.Float(0.0)
+        _self_context["y"] = sympy.Float(0.0)
 
         translator = CCTranslator(
             cls_def=_cls_def_ast,
@@ -110,7 +113,7 @@ class PredModule(BaseModule):
             },
             source_code=source_code,
             var_context=self._expr_context,
-            const_context=self._const_context,
+            covariate_context=self._covariate_context,
             self_context=_self_context,
             global_context=self._global_context,
             result_variables=result_variables

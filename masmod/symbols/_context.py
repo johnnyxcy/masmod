@@ -17,7 +17,7 @@ class VarContext(typing.Generic[T]):
     @property
     def generic_T(self) -> typing.Type[T]:
         if not hasattr(self, "__orig_class__"):
-            raise ValueError("构建 VarContext 必须要提供模版类型，类似于 VarContext[int | float]")
+            raise ValueError("构建 VarContext 必须要提供模版类型，类似于 ctx = VarContext[int | float]()")
         _generic_T, = typing.get_args(self.__orig_class__)
         return _generic_T
 
@@ -45,8 +45,9 @@ class VarContext(typing.Generic[T]):
         return self._d.items()
 
     def __setitem__(self, __name: str, __value: typing.Any) -> None:
-        if self.generic_T != typing.Any and not isinstance(__value, self.generic_T):
-            raise TypeError("{0} 是 {1} 类型，与给定的 {2} 类型不符".format(__name, type(__value), self.generic_T))
+        # TODO: maybe add type check
+        # if self.generic_T != typing.Any and not isinstance(__value, self.generic_T):
+        #     raise TypeError("{0} 是 {1} 类型，与给定的 {2} 类型不符".format(__name, type(__value), self.generic_T))
         self._d[__name] = __value
 
     def __getattribute__(self, __name: str) -> typing.Any:
@@ -59,5 +60,7 @@ class VarContext(typing.Generic[T]):
             **self._d.copy()
         }
         _d.update(o._d.copy())
+
         _generic_T = self.generic_T
+
         return VarContext[typing.Union[_generic_T, o.generic_T]](_d)

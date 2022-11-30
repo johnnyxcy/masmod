@@ -2,7 +2,7 @@ import ast
 import typing
 import sympy
 from masmod.symbols._variable import SymVar
-from masmod.symbols import ExprContext, AnyContext
+from masmod.symbols import VarContext, AnyContext
 from masmod.translator import ASTSympyTranslator
 from masmod.utils.mask_self import mask_self_attr
 
@@ -11,7 +11,8 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
 
     def __init__(
         self,
-        var_context: ExprContext,
+        var_context: VarContext[SymVar],
+        self_context: AnyContext,
         local_context: AnyContext,
         global_context: AnyContext,
     ) -> None:
@@ -20,7 +21,7 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
         self._locals = local_context.as_dict()
         self._globals = global_context.as_dict()
 
-        self._sympy_translator = ASTSympyTranslator(self_context=var_context, local_context=local_context)
+        self._sympy_translator = ASTSympyTranslator(self_context=self_context, local_context=local_context)
 
         self._partial_deriv_term_names_mapping: typing.Dict[str, typing.List[str]] = {}
 

@@ -5,7 +5,7 @@
   "python.testing.pytestEnabled": true,
   "python.analysis.typeCheckingMode": "basic",
   "python.linting.mypyEnabled": false,
-  "cSpell.words": ["ipred", "masmod", "sympy"],
+  "cSpell.words": ["covariate", "ipred", "masmod", "sympy"],
   "files.associations": {
     "*.json": "jsonc",
     "any": "cpp",
