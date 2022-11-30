@@ -20,11 +20,13 @@ class EmaxModel(PredModule):
 
         self.eps = sigma(0.09)
 
+        self.indicator = 0
+
         self.data = pd.read_csv(pathlib.Path(__file__).parent.joinpath("dataEmax.csv"))
         self.data = self.data[self.data["MDV"] == 0]
 
     def pred(self, t):
-
+        # weight = self.get_data("weight")
         em = self.theta_em * ff.exp(self.eta_em)
         et = self.theta_et50 * ff.exp(self.eta_et50)
 
@@ -43,5 +45,15 @@ class TestEmaxModel(unittest.TestCase):
     def test_parse(self) -> None:
         model = EmaxModel()
 
-        with open("./masmodsub.cc", mode="w", encoding="utf-8") as f:
+        def expect_not_implemented_error_accessing_ipred() -> None:
+            print(model.ipred)
+
+        self.assertRaises(NotImplementedError, expect_not_implemented_error_accessing_ipred)
+
+        def expect_not_implemented_error_accessing_y() -> None:
+            print(model.y)
+
+        self.assertRaises(NotImplementedError, expect_not_implemented_error_accessing_y)
+
+        with open(".tmp/out.cc", mode="w", encoding="utf-8") as f:
             f.write(model.translated)

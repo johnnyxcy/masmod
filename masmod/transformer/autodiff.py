@@ -3,6 +3,8 @@ import typing
 import sympy
 from masmod.symbols._variable import SymVar
 from masmod.symbols import ExprContext, AnyContext
+from masmod.translator import ASTSympyTranslator
+from masmod.utils.mask_self import mask_self_attr
 
 
 class AutoDiffNodeTransformer(ast.NodeTransformer):
@@ -18,29 +20,41 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
         self._locals = local_context.as_dict()
         self._globals = global_context.as_dict()
 
-        self._generate_autodiffs: typing.Dict[str, typing.List[str]] = {}
+        self._sympy_translator = ASTSympyTranslator(self_context=var_context, local_context=local_context)
+
+        self._partial_deriv_term_names_mapping: typing.Dict[str, typing.List[str]] = {}
+
+    def get_partial_deriv_term_names(self, var_name: str) -> typing.List[str]:
+        """获取生成 var_name 对应的 partial derivate 变量名
+
+        Args:
+            var_name (str): 尝试获取的 var_name
+
+        Returns:
+            typing.List[str]: var_name 对应的 partial derivatives 的变量名
+        """
+        if var_name not in self._partial_deriv_term_names_mapping.keys():
+            raise KeyError("{0} 没有生成对应的 partial derivative".format(var_name))
+        return self._partial_deriv_term_names_mapping[var_name]
 
     def _append_partial_derivative(self, expr: sympy.Expr, var_name_prefix: str) -> typing.List[ast.Assign]:
         partial_deriv_assignments: typing.List[ast.Assign] = []
         for var in self._var_context.values():
             if isinstance(var, SymVar):
                 diff_var_name = ast.Name(id=f"{var_name_prefix}_wrt_{var.name}")
-                partial_deriv = expr.diff(var)
-                if var_name_prefix not in self._generate_autodiffs.keys():
-                    self._generate_autodiffs[var_name_prefix] = []
-                self._generate_autodiffs[var_name_prefix].append(diff_var_name.id)
-                partial_deriv_code = sympy.pycode(partial_deriv, fully_qualified_modules=False)
 
-                if not isinstance(partial_deriv_code, str):
-                    raise ValueError()
-                partial_deriv_assignments.append(
-                    ast.Assign(targets=(diff_var_name,), value=ast.parse(partial_deriv_code, mode="eval"))
-                )
+                if var_name_prefix not in self._partial_deriv_term_names_mapping.keys():
+                    self._partial_deriv_term_names_mapping[var_name_prefix] = [diff_var_name.id]
+                else:
+                    self._partial_deriv_term_names_mapping[var_name_prefix].append(diff_var_name.id)
+
+                partial_deriv = expr.diff(var)
+                ast_expr = self._sympy_translator.translate(partial_deriv)
+                partial_deriv_assignments.append(ast.Assign(targets=(diff_var_name,), value=ast_expr))
         return partial_deriv_assignments
 
-    @property
-    def generated_autodiffs(self) -> typing.Dict[str, typing.List[str]]:
-        return self._generate_autodiffs
+    # def visit_If(self, node: ast.If) -> typing.Any:
+    #     return node
 
     def visit_Assign(self, node: ast.Assign) -> typing.Any:
         lhs = node.targets
@@ -63,7 +77,7 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
                         if isinstance(rhs_expr, sympy.Expr):
                             diffs.extend(
                                 self._append_partial_derivative(
-                                    expr=rhs_expr, var_name_prefix=f"__{token.value.id}_{token.attr}"
+                                    expr=rhs_expr, var_name_prefix=mask_self_attr(token.attr)
                                 )
                             )
 

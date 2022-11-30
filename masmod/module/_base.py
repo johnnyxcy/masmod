@@ -3,6 +3,7 @@ from pandas import DataFrame
 import sympy
 import inspect
 from masmod.symbols import ExprContext, ConstContext, AnyContext
+from masmod.utils.mask_self import mask_self_attr, mask_self_get_data
 
 
 class PostInitResolver(type):
@@ -33,6 +34,11 @@ class BaseModule(object, metaclass=PostInitResolver):
         if not isinstance(data, DataFrame):
             raise TypeError("self.data 必须是 pandas.DataFrame 数据类型")
 
+        for col in data.columns:
+            col_name = str(col)
+            if col_name.find(" ") != -1:
+                raise ValueError("self.data 的列名不允许包含空格 {0}".format(col_name))
+
         for variable_name, variable_obj in namespace.items():
             # if variable_name == "__orig_class__":
             #     # special case
@@ -41,6 +47,12 @@ class BaseModule(object, metaclass=PostInitResolver):
                 self._expr_context[variable_name] = variable_obj
             elif isinstance(variable_obj, int | float | bool | str):
                 self._const_context[variable_name] = variable_obj
+
+        _functor_context = AnyContext()
+
+        _functor_context["get_data"] = lambda col_name: sympy.Symbol(mask_self_get_data(col_name))
+
+        self._self_context = self._expr_context + self._const_context + _functor_context
 
         cls_source_file = inspect.getsourcefile(self.__class__)
         call_stacks = inspect.stack()
@@ -51,13 +63,12 @@ class BaseModule(object, metaclass=PostInitResolver):
                     self._global_context[f_global_name] = f_global_val
                 break
 
-    def col(self, col_name: str) -> typing.Any:
-        """从数据中获取某一列名的数据，这个函数会在编译阶段处理为 row-wise 的访问
-        迭代器
+    def get_data(self, col_name: str) -> typing.Any:
+        """从数据中获取某一列名的数据，这个函数会在编译阶段处理为 row-wise 的访问迭代器
 
         Args:
             col_name (str): 需要获取的数据列名，如果列名不存在则应该报错
         Returns:
             typing.Any: 数据中某列在某一行的值
         """
-        raise AttributeError("直接调用 col() 没有意义，请尝试 TODO:提供帮助")
+        raise NotImplementedError

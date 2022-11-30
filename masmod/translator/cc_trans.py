@@ -1,3 +1,4 @@
+from __future__ import annotations
 import ast
 from copy import deepcopy
 import typing
@@ -8,7 +9,8 @@ from dataclasses import dataclass
 import re
 from masmod.symbols import ExprContext, ConstContext, AnyContext
 from masmod.functional import exp, log
-from masmod.utils.nanoid import generate_nanoid
+from masmod.translator.sympy_ast_trans import SYMPY_EXP_FUNC_NAME, SYMPY_LOG_FUNC_NAME
+from masmod.utils.mask_self import mask_self_attr, mask_self_get_data
 
 
 class ValueType(enum.Enum):
@@ -18,6 +20,7 @@ class ValueType(enum.Enum):
     VALUE_TYPE_INT = "int"
     VALUE_TYPE_LONG = "long"
     VALUE_TYPE_STRING = "std::string"
+    VALUE_TYPE_BOOL = "bool"
     VALUE_TYPE_VEC = "Eigen::VectorXd"
     VALUE_TYPE_VEC_REF = "Eigen::VectorXd&"
     VALUE_TYPE_MAT = "Eigen::MatrixXd"
@@ -29,6 +32,27 @@ class ValueType(enum.Enum):
 
     def is_numeric(self) -> bool:
         return self == self.VALUE_TYPE_DOUBLE or self == self.VALUE_TYPE_INT or self == self.VALUE_TYPE_LONG
+
+    @classmethod
+    def from_constant(cls, const_val: typing.Any) -> ValueType:
+        typ: ValueType | None = None
+
+        if isinstance(const_val, float):
+            typ = ValueType.VALUE_TYPE_DOUBLE
+        elif isinstance(const_val, bool):
+            typ = ValueType.VALUE_TYPE_BOOL
+        elif isinstance(const_val, int):
+            if const_val <= -2147483648 or const_val >= 2147483647:
+                typ = ValueType.VALUE_TYPE_LONG
+            else:
+                typ = ValueType.VALUE_TYPE_INT
+        elif isinstance(const_val, str):
+            typ = ValueType.VALUE_TYPE_STRING
+
+        if typ is None:
+            raise TypeError("不支持的 const 类型: {0}".format(type(const_val)))
+
+        return typ
 
 
 Ctx = typing.Dict[str, ValueType]
@@ -43,6 +67,7 @@ class FuncSignature:
 @dataclass
 class EvaluatedExpr:
     v: str
+    token: ast.AST
     typ: ValueType | None = None
 
     def __str__(self) -> str:
@@ -63,8 +88,8 @@ class CCTranslator:
         source_code: str,
         var_context: ExprContext,
         const_context: ConstContext,
-        reserved_self_attr: typing.Dict[str, ValueType],
         global_context: AnyContext,
+        self_context: AnyContext,
         result_variables: typing.List[str]
     ) -> None:
         self._cls_def = cls_def
@@ -74,17 +99,20 @@ class CCTranslator:
 
         self._var_context = var_context
         self._const_context = const_context
-        self._reserved_self_attr = reserved_self_attr
 
-        self._self_ctx = (self._var_context + self._const_context).as_dict()
-        for attr_name, attr_type in self._reserved_self_attr.items():
-            if attr_type == ValueType.VALUE_TYPE_DOUBLE:
-                self._self_ctx[attr_name] = float(0.0)
-            else:
-                raise NotImplementedError("暂不支持 {0} 类型的 self 属性".format(attr_type.value))
+        self._self_ctx = self_context.as_dict()
+        # for attr_name, attr_type in self._reserved_self_attr.items():
+        #     if attr_type == ValueType.VALUE_TYPE_DOUBLE:
+        #         self._self_ctx[attr_name] = float(0.0)
+        #     else:
+        #         raise NotImplementedError("暂不支持 {0} 类型的 self 属性".format(attr_type.value))
 
         self._global_ctx = {
-            "exp": exp, "log": log, **global_context.as_dict()
+            "exp": exp,
+            "log": log,
+            SYMPY_EXP_FUNC_NAME: exp,
+            SYMPY_LOG_FUNC_NAME: log,
+            **global_context.as_dict(),
         }
 
         self._result_variables = result_variables
@@ -128,14 +156,14 @@ class CCTranslator:
             ctx[arg_name] = arg_type
 
         for var_name in self._var_context.keys():
-            ctx[var_name] = ValueType.VALUE_TYPE_DOUBLE
+            ctx[mask_self_attr(var_name)] = ValueType.VALUE_TYPE_DOUBLE
+
+        for const_name, const_val in self._const_context.items():
+            ctx[mask_self_attr(const_name)] = ValueType.from_constant(const_val)
 
         signature = self._inject_result_container_to_signature(signature)
 
-        translated.extend(
-            ["", "// #region 用户定义的变量", *self._do_translate_func_signature(func_def, signature), "// #endregion", ""]
-        )
-        translated.append("{")
+        translated.extend(["", *self._do_translate_func_signature(func_def, signature), "{"])
 
         translated_body: typing.List[str] = [
             "", "// #region 从 self context 获取变量值", *self._retrieve_vars_from_self(), "// #endregion", ""
@@ -161,15 +189,8 @@ class CCTranslator:
             if result_var_name not in ctx.keys():
                 raise ValueError(f"没有输出 {result_var_name}")
             translated.append(f"__container({var_index}) = {result_var_name}")
-        # for attr_index, attr_name in enumerate(self._reserved_self_attr.keys()):
-        #     for var_name in ctx.keys():
-        #         if var_name == attr_name:
-        #             translated.append(f"__container({attr_index}, 0) = {var_name}")
-        #         # else:
-        #         #     re.match(r"")
-        #         #     if var_name
-        translated.extend(["// #endregion", ""])
-        translated.append("}")
+
+        translated.extend(["// #endregion", "}"])
 
         return translated
 
@@ -215,7 +236,8 @@ class CCTranslator:
             # 如果在上下文有对应的类型提供，返回其类型，否则是 None
             if _identifier in ctx.keys():
                 _typ = ctx[_identifier]
-            return EvaluatedExpr(v=_identifier, typ=_typ)
+
+            return EvaluatedExpr(v=_identifier, typ=_typ, token=expr)
 
         # 如果是一个常数
         if isinstance(expr, ast.Constant):
@@ -243,15 +265,30 @@ class CCTranslator:
                     typ = evaluated_const.typ
 
                 # 由于会对 self 中的所有字段执行重新赋值，这里直接返回 attr
-                return EvaluatedExpr(v=attr, typ=typ)
+                return EvaluatedExpr(v=mask_self_attr(attr), typ=typ, token=expr)
             elif value.v in self._global_ctx.keys():
-                return EvaluatedExpr(f"{value.v}.{attr}")
+                return EvaluatedExpr(v=f"{value.v}.{attr}", token=expr)
             else:
                 self.__raise(expr, NotImplementedError("不支持 self 以外的对象"))
-                # return f"{value}.{attr}"
 
         # 如果是函数调用
         if isinstance(expr, ast.Call):
+            # # self.get_data 需要做特殊处理
+            # if isinstance(expr.func, ast.Attribute) and \
+            #     isinstance(expr.func.value, ast.Name) and \
+            #         expr.func.value.id == "self" and \
+            #             expr.func.attr == "get_data":
+
+            #     if len(expr.args) != 1:
+            #         self.__raise(expr, ValueError("self.get_data 只能够有一个入参"))
+
+            #     if not isinstance(expr.args[0], ast.Constant):
+            #         self.__raise(expr.args[0], ValueError("self.get_data 只支持类似于 self.get_data(\"COL_NAME\") 的使用方式"))
+
+            #     evaluated_arg = self._do_eval_expr(expr.args[0], ctx)
+            #     evaluated_arg.
+            #     mask_self_get_data()
+
             # 获取函数名称
             func = self._do_eval_expr(expr.func, ctx)
 
@@ -261,11 +298,13 @@ class CCTranslator:
             # TODO:目前支持的函数只有 double 类型返回，如果后续有添加，重新补充逻辑
             # 如果函数名是 exp / log 这样的 reserved name
             if func in _functor_mapper.values():
-                return EvaluatedExpr(v=f"{func}({args})", typ=ValueType.VALUE_TYPE_DOUBLE)
+                return EvaluatedExpr(v=f"{func}({args})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
             else:  # 或者函数的地址和 masmod.functional 一致
                 func_obj = eval(func.v, self._global_ctx, {})
                 if id(func_obj) in _functor_mapper.keys():
-                    return EvaluatedExpr(v=f"{_functor_mapper[id(func_obj)]}({args})", typ=ValueType.VALUE_TYPE_DOUBLE)
+                    return EvaluatedExpr(
+                        v=f"{_functor_mapper[id(func_obj)]}({args})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr
+                    )
                 self.__raise(expr, ValueError("函数 {0} 无法处理".format(func)))
 
         # 如果是二元运算
@@ -283,17 +322,17 @@ class CCTranslator:
 
             # 特殊处理 pow `a ** b`
             if isinstance(expr.op, ast.Pow):
-                return EvaluatedExpr(v=f"pow({left.v}, {right.v})", typ=ValueType.VALUE_TYPE_DOUBLE)
+                return EvaluatedExpr(v=f"pow({left.v}, {right.v})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
             else:
                 op = self._do_eval_op(expr.op)
-                return EvaluatedExpr(v=f"{left.v} {op.v} {right.v}", typ=ValueType.VALUE_TYPE_DOUBLE)
+                return EvaluatedExpr(v=f"{left.v} {op.v} {right.v}", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
 
         # 如果是一元运算，即 -a, +b
         if isinstance(expr, ast.UnaryOp):
             op = self._do_eval_unaryop(typing.cast(ast.unaryop, expr.op))
             oprand = self._do_eval_expr(expr.operand, ctx)
             # 根据 oprand 的具体类型
-            return EvaluatedExpr(v=f"{op.v}{oprand.v}", typ=oprand.typ)
+            return EvaluatedExpr(v=f"{op.v}{oprand.v}", typ=oprand.typ, token=expr)
 
         # 如果是个表达式，直接 eval
         if isinstance(expr, ast.Expression):
@@ -303,34 +342,28 @@ class CCTranslator:
 
     def _do_eval_constant(self, constant: ast.Constant) -> EvaluatedExpr:
         v: str
-        typ: ValueType
+        typ: ValueType = ValueType.from_constant(constant.value)
 
-        if isinstance(constant.value, float):
+        if typ in [ValueType.VALUE_TYPE_DOUBLE, ValueType.VALUE_TYPE_INT, ValueType.VALUE_TYPE_LONG]:
             v = str(constant.value)
-            typ = ValueType.VALUE_TYPE_DOUBLE
-        elif isinstance(constant.value, int):
-            v = str(constant.value)
-            if constant.value <= -2147483648 or constant.value >= 2147483647:
-                typ = ValueType.VALUE_TYPE_LONG
-            else:
-                typ = ValueType.VALUE_TYPE_INT
-        elif isinstance(constant.value, str):
+        elif typ == ValueType.VALUE_TYPE_BOOL:
+            v = "true" if constant.value else "false"
+        elif typ == ValueType.VALUE_TYPE_STRING:
             v = constant.value
-            typ = ValueType.VALUE_TYPE_STRING
         else:
             self.__raise(constant, NotImplementedError("暂不支持的常数类型 {0}".format(constant)))
 
-        return EvaluatedExpr(v=v, typ=typ)
+        return EvaluatedExpr(v=v, typ=typ, token=constant)
 
     def _do_eval_op(self, operator: ast.operator) -> EvaluatedExpr:
         if isinstance(operator, ast.Add):
-            return EvaluatedExpr(v="+")
+            return EvaluatedExpr(v="+", token=operator)
         elif isinstance(operator, ast.Sub):
-            return EvaluatedExpr(v="-")
+            return EvaluatedExpr(v="-", token=operator)
         elif isinstance(operator, ast.Mult):
-            return EvaluatedExpr(v="*")
+            return EvaluatedExpr(v="*", token=operator)
         elif isinstance(operator, ast.Div):
-            return EvaluatedExpr(v="/")
+            return EvaluatedExpr(v="/", token=operator)
         elif isinstance(operator, ast.Pow):
             self.__raise(operator, ValueError("无法通过 _do_translate_op 处理 power"))
 
@@ -338,9 +371,9 @@ class CCTranslator:
 
     def _do_eval_unaryop(self, unary_operator: ast.unaryop) -> EvaluatedExpr:
         if isinstance(unary_operator, ast.UAdd):
-            return EvaluatedExpr(v="+")
+            return EvaluatedExpr(v="+", token=unary_operator)
         elif isinstance(unary_operator, ast.USub):
-            return EvaluatedExpr(v="-")
+            return EvaluatedExpr(v="-", token=unary_operator)
 
         self.__raise(unary_operator, NotImplementedError("TODO: 支持 unary_operator {0}".format(unary_operator)))
 
@@ -394,7 +427,13 @@ class CCTranslator:
     def _retrieve_vars_from_self(self) -> typing.List[str]:
         retrieved_vars: typing.List[str] = []
         for var_name in self._var_context.keys():
-            retrieved_vars.append(f"{var_name} = std::any_cast<double>(self[\"{var_name}\"]);")
+            retrieved_vars.append(f"{mask_self_attr(var_name)} = std::any_cast<double>(self[\"{var_name}\"]);")
+
+        for const_name, const_val in self._const_context.items():
+            val_typ = ValueType.from_constant(const_val)
+            retrieved_vars.append(
+                f"{mask_self_attr(const_name)} = std::any_cast<{val_typ.value}>(self[\"{const_name}\"])"
+            )
         return retrieved_vars
 
     # def _define_self_struct(self) -> typing.List[str]:

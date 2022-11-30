@@ -7,15 +7,13 @@ from masmod.module._base import BaseModule
 from masmod.symbols import AnyContext
 from masmod.transformer.autodiff import AutoDiffNodeTransformer
 from masmod.translator.cc_trans import CCTranslator, FuncSignature, ValueType
+from masmod.utils.mask_self import mask_self_attr
 
 
 class PredModule(BaseModule):
 
     def __init__(self) -> None:
         super().__init__()
-        self._ipred: sympy.Expr | None = None
-        self._y: sympy.Expr | None = None
-
         self.__translated: str | None = None
 
     def __post_init__(self) -> None:
@@ -30,34 +28,19 @@ class PredModule(BaseModule):
 
     @property
     def ipred(self) -> sympy.Expr:
-        if self._ipred is None:
-            raise ValueError("self.ipred 没有定义")
-
-        return self._ipred
+        raise NotImplementedError
 
     @ipred.setter
     def ipred(self, ipred: sympy.Expr | int | float) -> None:
-        if isinstance(ipred, int | float):
-            ipred = sympy.Float(ipred)
-        elif not isinstance(ipred, sympy.Expr):
-            raise TypeError("ipred 只能是 int | float | Expr 类型")
-
-        self._ipred = ipred
+        raise NotImplementedError
 
     @property
     def y(self) -> sympy.Expr:
-        if self._y is None:
-            raise ValueError("self.y 没有定义")
-        return self._y
+        raise NotImplementedError
 
     @y.setter
     def y(self, y: sympy.Expr | int | float) -> None:
-        if isinstance(y, int | float):
-            y = sympy.Float(y)
-        elif not isinstance(y, sympy.Expr):
-            raise TypeError("y 只能是 int | float | Expr 类型")
-
-        self._y = y
+        raise NotImplementedError
 
     def __getattribute__(self, __name: str) -> typing.Any:
         if __name == "pred":
@@ -99,9 +82,10 @@ class PredModule(BaseModule):
             raise TypeError("source_code 不属于 Class Def 类型")
 
         local_context = AnyContext()
-        local_context["self"] = self._expr_context + self._const_context
+        local_context["self"] = self._self_context
         local_context["t"] = sympy.Symbol("t")
-        result_variables = ["self.ipred", "self.y"]
+        result_variables = [mask_self_attr("ipred"), mask_self_attr("y")]
+        partial_deriv_variables: typing.List[str] = []
         for part in _cls_def_ast.body:
             # 如果是名为 "pred" 的函数, 处理 autodiff 的逻辑
             if isinstance(part, ast.FunctionDef) and part.name == "pred":
@@ -109,10 +93,15 @@ class PredModule(BaseModule):
                     var_context=self._expr_context, local_context=local_context, global_context=self._global_context
                 )
                 transformer.visit(part)
-                # TODO: add result variables
-                # for var_name, diff_var_names in transformer.generated_autodiffs.items():
-                #     if var_name in result_variables:
-                #         result_variables.extend(diff_var_names)
+                for result_var_name in result_variables:
+                    partial_deriv_variables.extend(transformer.get_partial_deriv_term_names(result_var_name))
+
+        result_variables.extend(partial_deriv_variables)
+
+        _self_context = self._self_context.copy()
+        # inject ipred and y into self pointer
+        _self_context["ipred"] = float(0.0)
+        _self_context["y"] = float(0.0)
 
         translator = CCTranslator(
             cls_def=_cls_def_ast,
@@ -122,9 +111,7 @@ class PredModule(BaseModule):
             source_code=source_code,
             var_context=self._expr_context,
             const_context=self._const_context,
-            reserved_self_attr={
-                "ipred": ValueType.VALUE_TYPE_DOUBLE, "y": ValueType.VALUE_TYPE_DOUBLE
-            },
+            self_context=_self_context,
             global_context=self._global_context,
             result_variables=result_variables
         )
