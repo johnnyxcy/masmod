@@ -1,4 +1,2 @@
-import typing
-
 ValueType = int | float
-BoundsType = typing.Tuple[ValueType | None, ValueType | None]
+BoundsType = tuple[ValueType | None, ValueType | None]

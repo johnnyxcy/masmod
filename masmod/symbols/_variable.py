@@ -53,7 +53,7 @@ class SymVar(sympy.Symbol):
         self._init_value = float(init_value)
 
     @property
-    def bounds(self) -> typing.Tuple[float, float]:
+    def bounds(self) -> tuple[float, float]:
         """参数的上下限"""
         return self._bounds
 

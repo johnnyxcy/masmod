@@ -1,5 +1,4 @@
 import typing
-from pandas import DataFrame
 import inspect
 from masmod.symbols import AnyContext, VarContext
 from masmod.symbols._variable import SymVar

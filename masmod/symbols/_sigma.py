@@ -52,7 +52,7 @@ class SigmaBlock:
         >>> #   [0, 1]
         >>> # ]
     """
-    tril: typing.List[ValueType] | np.ndarray  # 下三角矩阵的值 (一维数组)
+    tril: list[ValueType] | np.ndarray  # 下三角矩阵的值 (一维数组)
     dimension: int  # block 的 dimension
 
 
@@ -62,7 +62,7 @@ class Sigma:
     """
 
     def __init__(
-        self, names: typing.List[str], init_values: np.ndarray, lower_bounds: np.ndarray, upper_bounds: np.ndarray
+        self, names: list[str], init_values: np.ndarray, lower_bounds: np.ndarray, upper_bounds: np.ndarray
     ) -> None:
         self.__names = names
         self.init_values = init_values
@@ -71,7 +71,7 @@ class Sigma:
 
     @classmethod
     def from_ndarray(cls, array: np.ndarray) -> Sigma:
-        names: typing.List[str] = [_eta.name for _eta in np.diag(array)]
+        names: list[str] = [_eta.name for _eta in np.diag(array)]
         init_values: np.ndarray = np.zeros(array.shape)
         lower_bounds: np.ndarray = np.zeros(array.shape)
         upper_bounds: np.ndarray = np.zeros(array.shape)
@@ -92,7 +92,7 @@ class Sigma:
         return cls(names=names, init_values=init_values, lower_bounds=lower_bounds, upper_bounds=upper_bounds)
 
     @property
-    def names(self) -> typing.List[str]:
+    def names(self) -> list[str]:
         return self.__names
 
 
@@ -112,48 +112,46 @@ def sigma(init_sigma: ValueType | None = None, bounds: BoundsType | None = None,
 
 
 @typing.overload
-def sigma(
-    init_sigma: SigmaBlock,
-    bounds: typing.List[BoundsType | None] | np.ndarray | None = None,
-    fixed: bool = False
-) -> typing.List[Eps]:
+def sigma(init_sigma: SigmaBlock,
+            bounds: list[BoundsType | None] | np.ndarray | None = None,
+            fixed: bool = False) -> list[Eps]:
     """通过下三角矩阵构建 eps 对象
 
     Args:
         init_sigma (SigmaBlock): 下三角矩阵
-        bounds (typing.List[BoundsType] | np.ndarray | None, optional): 每个 eps 的上下限，默认所有的 eps 都为 (-inf, inf)
+        bounds (list[BoundsType] | np.ndarray | None, optional): 每个 eps 的上下限，默认所有的 eps 都为 (-inf, inf)
         fixed (bool, optional): 是否固定，如果为 True 整个下三角矩阵构建的 Sigma 都会固定，默认为 False
 
     Returns:
-        typing.List[Eps]: 生成的多个 eps 对象
+        list[Eps]: 生成的多个 eps 对象
     """
     ...
 
 
 @typing.overload
 def sigma(
-    init_sigma: typing.List[typing.List[ValueType]] | np.ndarray,
-    bounds: typing.List[BoundsType | None] | np.ndarray | None = None,
+    init_sigma: list[list[ValueType]] | np.ndarray,
+    bounds: list[BoundsType | None] | np.ndarray | None = None,
     fixed: bool = False,
-) -> typing.List[Eps]:
+) -> list[Eps]:
     """通过完整 Sigma 矩阵构建 eps 对象
 
     Args:
-        init_sigma (typing.List[typing.List[ValueType]] | np.ndarray): 完整 Sigma 矩阵，必须为方块矩阵
-        bounds (typing.List[BoundsType] | np.ndarray | None, optional): 每个 eps 的上下限，默认所有的 eps 都为 (-inf, inf)
+        init_sigma (list[list[ValueType]] | np.ndarray): 完整 Sigma 矩阵，必须为方块矩阵
+        bounds (list[BoundsType] | np.ndarray | None, optional): 每个 eps 的上下限，默认所有的 eps 都为 (-inf, inf)
         fixed (bool, optional): 是否固定，如果为 True 整个 Sigma 都会固定，默认为 False
 
     Returns:
-        typing.List[Eps]: 生成的多个 eps 对象
+        list[Eps]: 生成的多个 eps 对象
     """
     ...
 
 
 def sigma(
-    init_sigma: ValueType | SigmaBlock | np.ndarray | typing.List[typing.List[ValueType]] | None = None,
-    bounds: BoundsType | np.ndarray | typing.List[BoundsType | None] | None = None,
+    init_sigma: ValueType | SigmaBlock | np.ndarray | list[list[ValueType]] | None = None,
+    bounds: BoundsType | np.ndarray | list[BoundsType | None] | None = None,
     fixed: bool = False
-) -> Eps | typing.List[Eps]:
+) -> Eps | list[Eps]:
     sigma_mat: np.ndarray
 
     if init_sigma is None:
@@ -198,10 +196,10 @@ def sigma(
         if not np.all(np.diag(sigma_mat, -i) == np.diag(sigma_mat, 1)):
             raise ValueError("提供 Sigma \n {0} \n 不是对称阵".format(str(sigma_mat)))
 
-    _bounds: typing.List[BoundsType | None]
+    _bounds: list[BoundsType | None]
     if bounds is None:
         _bounds = [None for _ in range(n_dim)]
-    elif not (isinstance(bounds, typing.List) or isinstance(bounds, np.ndarray)):
+    elif not (isinstance(bounds, list) or isinstance(bounds, np.ndarray)):
         _bounds = [bounds]
     else:
         _bounds = [bound for bound in bounds]
@@ -214,7 +212,7 @@ def sigma(
     except ImproperUseError as e:
         raise ValueError("参数维度和参数赋值的数量不符，期望的参数数量为 {0}\n{1}".format(n_dim, e))
 
-    _names: typing.List[str] = []
+    _names: list[str] = []
     if n_dim == 1:
         if not isinstance(names, str):
             raise ValueError("单一维度构建 Sigma 无法解析层多个 eps 变量")
@@ -234,7 +232,7 @@ def sigma(
 
             _names.append(_name)
 
-    epsilons: typing.List[Eps] = []
+    epsilons: list[Eps] = []
     sigma_diag = np.diag(sigma_mat)
     for index, init_value in enumerate(sigma_diag):
         epsilons.append(Eps(name=_names[index], init_value=init_value, bounds=_bounds[index], fixed=fixed))

@@ -8,11 +8,11 @@ P = typing.TypeVar("P")
 
 class VarContext(typing.Generic[T]):
 
-    def __init__(self, d: typing.Dict[str, T] | None = None) -> None:
+    def __init__(self, d: dict[str, T] | None = None) -> None:
         super().__init__()
         if not d:
             d = {}
-        self._d: typing.Dict[str, T] = d
+        self._d: dict[str, T] = d
 
     @property
     def generic_T(self) -> typing.Type[T]:
@@ -32,7 +32,7 @@ class VarContext(typing.Generic[T]):
         _d = self._d.copy()
         return VarContext[_generic_T](_d)
 
-    def as_dict(self) -> typing.Dict[str, T]:
+    def as_dict(self) -> dict[str, T]:
         return self._d
 
     def keys(self) -> dict_keys[str, T]:
@@ -56,7 +56,7 @@ class VarContext(typing.Generic[T]):
         return object.__getattribute__(self, __name)
 
     def __add__(self, o: VarContext[P]) -> VarContext[T | P]:
-        _d: typing.Dict[str, T | P] = {
+        _d: dict[str, T | P] = {
             **self._d.copy()
         }
         _d.update(o._d.copy())
