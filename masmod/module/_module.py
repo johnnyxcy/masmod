@@ -4,13 +4,15 @@ import sympy
 import typing
 import ast
 from masmod.module._base import BaseModule
-from masmod.symbols import AnyContext
-from masmod.transformer.autodiff import AutoDiffNodeTransformer
+from masmod.symbols import AnyContext, Expression
+from masmod.ast_worker.autodiff import AutoDiffNodeTransformer
+from masmod.ast_worker.func_return import FuncReturnVisitor
 from masmod.translator.cc_trans import CCTranslator, FuncSignature, ValueType
-from masmod.utils.mask_self import mask_self_attr
+from masmod.utils.mask import mask_variable
+from masmod.utils.rethrow import rethrow
 
 
-class PredModule(BaseModule):
+class Module(BaseModule):
 
     def __init__(self) -> None:
         super().__init__()
@@ -26,29 +28,13 @@ class PredModule(BaseModule):
             raise AttributeError("Invalid Attribute")
         return self.__translated
 
-    @property
-    def ipred(self) -> sympy.Expr:
-        raise NotImplementedError
-
-    @ipred.setter
-    def ipred(self, ipred: sympy.Expr | int | float) -> None:
-        raise NotImplementedError
-
-    @property
-    def y(self) -> sympy.Expr:
-        raise NotImplementedError
-
-    @y.setter
-    def y(self, y: sympy.Expr | int | float) -> None:
-        raise NotImplementedError
-
     def __getattribute__(self, __name: str) -> typing.Any:
         if __name == "pred":
             raise AttributeError("直接调用 pred() 没有意义，请尝试 TODO:提供帮助")
         return super().__getattribute__(__name)
 
     @abc.abstractmethod
-    def pred(self, t: float) -> None:
+    def pred(self, t: float) -> tuple[Expression, Expression]:
         pass
 
     def _post_init_hook(self) -> None:
@@ -73,6 +59,10 @@ class PredModule(BaseModule):
         if not time_param_name:
             raise ValueError("继承的 pred 函数签名不匹配")
 
+        pred_signature_ret_ann = pred_signature.return_annotation
+        if pred_signature_ret_ann != inspect._empty:
+            if pred_signature_ret_ann != tuple[Expression, Expression]:
+                raise TypeError("pred 的返回值签名不匹配")
         source_code = inspect.getsource(self.__class__)
         parse_code_body = ast.parse(source_code).body
         if len(parse_code_body) != 1:
@@ -84,12 +74,25 @@ class PredModule(BaseModule):
         local_context = AnyContext()
         local_context["self"] = self._self_context
         local_context["t"] = sympy.Symbol("t")
-        result_variables = [mask_self_attr("ipred"), mask_self_attr("y")]
         partial_deriv_variables: typing.List[str] = []
+        result_variables: list[str] = []
         for part in _cls_def_ast.body:
             # 如果是名为 "pred" 的函数, 处理 autodiff 的逻辑
             if isinstance(part, ast.FunctionDef) and part.name == "pred":
+                visitor = FuncReturnVisitor(source_code)
+                visitor.visit(part)
+
+                returns = visitor.return_expr
+                if not isinstance(returns.value, ast.Tuple):
+                    rethrow(source_code, part, ValueError("返回值的类型错误"))
+
+                for el in returns.value.elts:
+                    if not isinstance(el, ast.Name):
+                        rethrow(source_code, el, ValueError("返回值必须是赋值后的对象"))
+                    result_variables.append(el.id)
+
                 transformer = AutoDiffNodeTransformer(
+                    source_code=source_code,
                     var_context=self._expr_context,
                     self_context=self._self_context,
                     local_context=local_context,
@@ -97,15 +100,13 @@ class PredModule(BaseModule):
                 )
                 transformer.visit(part)
                 for result_var_name in result_variables:
-                    partial_deriv_variables.extend(transformer.get_partial_deriv_term_names(result_var_name))
+                    partial_deriv_variables.extend(
+                        transformer.get_partial_deriv_term_names(mask_variable(result_var_name))
+                    )
 
         result_variables.extend(partial_deriv_variables)
 
         _self_context = self._self_context.copy()
-        # inject ipred and y into self pointer
-        _self_context["ipred"] = 0.0
-        _self_context["y"] = 0.0
-
         translator = CCTranslator(
             cls_def=_cls_def_ast,
             trans_functions={

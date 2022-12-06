@@ -27,6 +27,14 @@ class VarContext(typing.Generic[T]):
     def __str__(self) -> str:
         return self._d.__str__()
 
+    def subset(self, keyset: set[str]) -> VarContext[T]:
+        _d: dict[str, T] = {}
+        _generic_T = self.generic_T
+        for key in keyset:
+            _d[key] = self._d[key]
+
+        return VarContext[_generic_T](_d)
+
     def copy(self) -> VarContext[T]:
         _generic_T = self.generic_T
         _d = self._d.copy()

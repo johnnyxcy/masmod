@@ -38,17 +38,17 @@ class ASTSympyTranslator:
             if var_name:
                 return ast.Attribute(value=ast.Name(id="self"), attr=var_name)
 
-            raise NameError("{0} 不存在于 context 中".format(expr.name))
+            raise NameError("{0} 不存在于 context 中".format(expr))
 
         if isinstance(expr, sympy.exp):
             exponent = expr.exp
             return ast.Call(func=ast.Name(id=SYMPY_EXP_FUNC_NAME), args=[self.translate(exponent)], keywords=[])
 
         if isinstance(expr, sympy.Add):
-            left, right = expr.args
-            _left = self.translate(left)
-            _right = self.translate(right)
-            return ast.BinOp(left=_left, right=_right, op=ast.Add())
+            translated: ast.AST = ast.Constant(value=0)
+            for token in expr.args:
+                translated = ast.BinOp(left=translated, right=self.translate(token), op=ast.Add())
+            return translated
 
         if isinstance(expr, sympy.Mul):
             _expr: ast.AST | None = None
@@ -69,5 +69,8 @@ class ASTSympyTranslator:
             _exponential = self.translate(exponential)
 
             return ast.BinOp(left=_base, right=_exponential, op=ast.Pow())
+
+        if isinstance(expr, sympy.core.numbers.Half):
+            return ast.Constant(value=0.5)
 
         raise NotImplementedError("无法处理 sympy 表达式 {0}".format(str(expr)))

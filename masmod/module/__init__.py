@@ -1,3 +1,3 @@
-from masmod.module.pred import PredModule
+from masmod.module._module import Module
 
-__all__ = ["PredModule"]
+__all__ = ["Module"]

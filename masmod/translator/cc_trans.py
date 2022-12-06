@@ -4,7 +4,6 @@ from copy import deepcopy
 import typing
 import enum
 from datetime import datetime
-import sympy
 from dataclasses import dataclass
 import pandas.api
 from masmod.symbols import VarContext, AnyContext
@@ -12,7 +11,8 @@ from masmod.symbols._variable import SymVar
 from masmod.symbols._covariate import Covariate
 from masmod.functional import exp, log
 from masmod.translator.sympy_ast_trans import SYMPY_EXP_FUNC_NAME, SYMPY_LOG_FUNC_NAME
-from masmod.utils.mask_self import mask_self_attr
+from masmod.utils.mask import mask_self_attr
+from masmod.utils.rethrow import locatable, rethrow
 
 
 class ValueType(enum.Enum):
@@ -22,7 +22,6 @@ class ValueType(enum.Enum):
     VALUE_TYPE_INT = "int"
     VALUE_TYPE_LONG = "long"
     VALUE_TYPE_STRING = "std::string"
-    VALUE_TYPE_BOOL = "bool"
     VALUE_TYPE_VEC = "Eigen::VectorXd"
     VALUE_TYPE_VEC_REF = "Eigen::VectorXd&"
     VALUE_TYPE_MAT = "Eigen::MatrixXd"
@@ -42,7 +41,7 @@ class ValueType(enum.Enum):
         if isinstance(val, float):
             typ = ValueType.VALUE_TYPE_DOUBLE
         elif isinstance(val, bool):
-            typ = ValueType.VALUE_TYPE_BOOL
+            typ = ValueType.VALUE_TYPE_INT
         elif isinstance(val, int):
             if val <= -2147483648 or val >= 2147483647:
                 typ = ValueType.VALUE_TYPE_LONG
@@ -196,7 +195,7 @@ class CCTranslator:
         for var_index, result_var_name in enumerate(self._result_variables):
             if result_var_name not in ctx.keys():
                 raise ValueError(f"没有输出 {result_var_name}")
-            translated.append(f"__container({var_index}) = {result_var_name}")
+            translated.append(f"__container({var_index}) = {result_var_name};")
 
         translated.extend(["// #endregion", "}"])
 
@@ -210,6 +209,10 @@ class CCTranslator:
             translated.extend(self._do_translate_assign(statement, ctx))
         elif isinstance(statement, ast.If):
             translated.extend(self._do_translate_if(statement, ctx))
+        elif isinstance(statement, ast.Return):
+            # special case
+            # TODO: 这个会影响用户自定义 closure 函数，但是暂时不支持
+            pass
         else:
             self.__raise(statement, NotImplementedError("尚不支持 statement {0}".format(statement)))
 
@@ -231,31 +234,44 @@ class CCTranslator:
 
         if target.v in ctx.keys():
             _declared_typ = ctx[target.v]
-            if _declared_typ != value.typ:
-                self.__raise(assign, TypeError("不允许重新指定变量 {0} 的类型".format(target.v)))
+            if _declared_typ != value.typ and not (_declared_typ.is_numeric() and value.typ.is_numeric()):
+                self.__raise(
+                    assign, TypeError("不允许重新指定变量 {0} 的类型 {1} => {2}".format(target.v, _declared_typ, value.typ))
+                )
+            ctx[target.v] = ValueType.VALUE_TYPE_DOUBLE
         else:
             ctx[target.v] = value.typ
         translated.append(f"{target.v} = {value.v};")
         return translated
 
-    def _do_translate_if(self, if_: ast.If, ctx: Ctx) -> typing.List[str]:
+    def _do_translate_if(self, if_: ast.If, ctx: Ctx, is_else_if: bool = False) -> typing.List[str]:
         translated: typing.List[str] = []
         test_condition = self._do_eval_expr(if_.test, ctx)
 
-        if test_condition.typ != ValueType.VALUE_TYPE_BOOL:
-            self.__raise(if_, TypeError("if 的比较条件必须是 bool 类型"))
+        if test_condition.typ is None or not test_condition.typ.is_numeric():
+            self.__raise(if_, TypeError("if 的比较条件必须是 bool 类型而不是 {0}".format(test_condition.typ)))
 
-        cond_assignment_prefix = "__if"
-        cnt = 1
-        cond_assignment_name = f"{cond_assignment_prefix}_{cnt}"
-        while cond_assignment_name in ctx.keys():
-            cnt += 1
-            cond_assignment_name = f"{cond_assignment_prefix}_{cnt}"
+        # test
+        if self.__locateable(if_):
+            translated.append(f"// {self._source_code_lines[if_.lineno - 1].strip()}")
 
-        translated.extend([f"bool {cond_assignment_name} = {test_condition.v};", f"if ({cond_assignment_name})", "{"])
+        branch_pref = "if" if not is_else_if else "else if "
+        translated.extend([f"{branch_pref} ({test_condition.v})", "{"])
+
         # body
+        for stmt in if_.body:
+            translated.extend(self._do_translate_statement(stmt, ctx))
 
         translated.append("}")
+
+        if len(if_.orelse) == 1 and isinstance(if_.orelse[0], ast.If):
+            translated.extend(self._do_translate_if(if_.orelse[0], ctx, is_else_if=True))
+        else:  # is else statement
+            translated.append("else {")
+            for stmt in if_.orelse:
+                translated.extend(self._do_translate_statement(stmt, ctx))
+
+            translated.append("}")
 
         return translated
 
@@ -296,7 +312,7 @@ class CCTranslator:
             if not (left.typ.is_numeric() and right.typ.is_numeric()) and left.typ != right.typ:
                 self.__raise(expr, TypeError("表达式两边的类型不匹配"))
 
-            return EvaluatedExpr(v=f"{left.v} {ops.v} {right.v}", token=expr, typ=ValueType.VALUE_TYPE_BOOL)
+            return EvaluatedExpr(v=f"{left.v} {ops.v} {right.v}", token=expr, typ=ValueType.VALUE_TYPE_INT)
 
         # 如果是属性访问
         if isinstance(expr, ast.Attribute):
@@ -338,6 +354,12 @@ class CCTranslator:
             # 如果函数名是 exp / log 这样的 reserved name
             if func in _functor_mapper.values():
                 return EvaluatedExpr(v=f"{func}({args})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
+            elif func.v == "int":
+                # cast to int
+
+                if len(expr.args) != 1:
+                    self.__raise(expr, ValueError("函数 int 只能有一个入参"))
+                return EvaluatedExpr(v=f"int({args})", typ=ValueType.VALUE_TYPE_INT, token=expr)
             else:  # 或者函数的地址和 masmod.functional 一致
                 func_obj = eval(func.v, self._global_ctx, {})
                 if id(func_obj) in _functor_mapper.keys():
@@ -355,8 +377,10 @@ class CCTranslator:
             right = self._do_eval_expr(expr.right, ctx)
 
             # 二元运算要求左右都是数值类型，二元运算的返回值只会是 double 类型
-            if left.typ is None or right.typ is None or \
-                (not left.typ.is_numeric()) or (not right.typ.is_numeric()):
+            # special case: bool * 数值类型在乘法运算中可以被允许
+            computable: bool = left.typ is not None and right.typ is not None and \
+                (left.typ.is_numeric() and right.typ.is_numeric())
+            if not computable:
                 self.__raise(expr, ValueError("二元运算的两边必须都是数值类型"))
 
             # 特殊处理 pow `a ** b`
@@ -364,7 +388,7 @@ class CCTranslator:
                 return EvaluatedExpr(v=f"pow({left.v}, {right.v})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
             else:
                 op = self._do_eval_op(expr.op)
-                return EvaluatedExpr(v=f"{left.v} {op.v} {right.v}", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
+                return EvaluatedExpr(v=f"({left.v}{op.v}{right.v})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
 
         # 如果是一元运算，即 -a, +b
         if isinstance(expr, ast.UnaryOp):
@@ -381,8 +405,6 @@ class CCTranslator:
 
         if typ in [ValueType.VALUE_TYPE_DOUBLE, ValueType.VALUE_TYPE_INT, ValueType.VALUE_TYPE_LONG]:
             v = str(constant.value)
-        elif typ == ValueType.VALUE_TYPE_BOOL:
-            v = "true" if constant.value else "false"
         elif typ == ValueType.VALUE_TYPE_STRING:
             v = constant.value
         else:
@@ -512,22 +534,10 @@ class CCTranslator:
     #     return definitions
 
     def __raise(self, token: ast.AST, error: BaseException) -> typing.NoReturn:
-        if self.__locateable(token):
-            lineno = token.lineno
-            col_offset = token.col_offset
-
-            orig_code = self._source_code_lines[lineno - 1]
-            indicator_line = [" "] * len(orig_code)
-            indicator_line[col_offset - 1] = "^"
-
-            syntax_error_summary = "\n" + orig_code + "\n" + "".join(indicator_line)
-
-            raise SyntaxError(syntax_error_summary) from error
-        else:
-            raise error
+        rethrow("\n".join(self._source_code_lines), token, error)
 
     def __locateable(self, token: ast.AST) -> bool:
-        return hasattr(token, "lineno")
+        return locatable(token)
 
     def __include_headers(self) -> typing.List[str]:
 
