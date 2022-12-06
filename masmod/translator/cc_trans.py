@@ -1,3 +1,18 @@
+# _*_ coding: utf-8 _*_
+############################################################
+# File: masmod/masmod/translator/cc_trans.py
+#
+# Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# File Created: 11/28/2022 09:47 pm
+#
+# Last Modified: 12/06/2022 04:32 pm
+#
+# Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# Copyright (c) 2022 MaS Dev Team
+############################################################
+
 from __future__ import annotations
 import ast
 from copy import deepcopy
@@ -6,13 +21,12 @@ import enum
 from datetime import datetime
 from dataclasses import dataclass
 import pandas.api
-from masmod.symbols import VarContext, AnyContext
-from masmod.symbols._variable import SymVar
-from masmod.symbols._covariate import Covariate
-from masmod.functional import exp, log
-from masmod.translator.sympy_ast_trans import SYMPY_EXP_FUNC_NAME, SYMPY_LOG_FUNC_NAME
-from masmod.utils.mask import mask_self_attr
-from masmod.utils.rethrow import locatable, rethrow
+
+from .sympy_ast_trans import SYMPY_EXP_FUNC_NAME, SYMPY_LOG_FUNC_NAME
+from ..symbols import VarContext, AnyContext, SymVar, Covariate
+from ..functional import exp, log
+from ..utils.mask import mask_self_attr
+from ..utils.rethrow import locatable, rethrow
 
 
 class ValueType(enum.Enum):

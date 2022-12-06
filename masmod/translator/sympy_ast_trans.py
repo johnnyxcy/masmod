@@ -1,7 +1,22 @@
+# _*_ coding: utf-8 _*_
+############################################################
+# File: masmod/masmod/translator/sympy_ast_trans.py
+#
+# Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# File Created: 11/30/2022 09:09 am
+#
+# Last Modified: 12/06/2022 04:32 pm
+#
+# Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# Copyright (c) 2022 MaS Dev Team
+############################################################
+
 import ast
 import sympy
 
-from masmod.symbols import AnyContext
+from ..symbols import AnyContext
 
 SYMPY_EXP_FUNC_NAME = "__masmod__functional__exp"
 SYMPY_LOG_FUNC_NAME = "__masmod__functional__log"

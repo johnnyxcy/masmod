@@ -1,6 +1,21 @@
+# _*_ coding: utf-8 _*_
+"""
+File: masmod/masmod/ast_worker/func_return.py
+
+Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+
+File Created: 12/05/2022 04:09 pm
+
+Last Modified: 12/06/2022 04:23 pm
+
+Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+
+Copyright (c) 2022 MaS Dev Team
+"""
 import typing
 import ast
-from masmod.utils.rethrow import rethrow, locatable
+
+from ..utils.rethrow import rethrow, locatable
 
 
 class FuncReturnVisitor(ast.NodeVisitor):

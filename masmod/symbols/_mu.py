@@ -1,11 +1,26 @@
+# _*_ coding: utf-8 _*_
+############################################################
+# File: masmod/masmod/symbols/_mu.py
+#
+# Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# File Created: 11/29/2022 08:51 am
+#
+# Last Modified: 12/06/2022 04:31 pm
+#
+# Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# Copyright (c) 2022 MaS Dev Team
+############################################################
+
 from __future__ import annotations
 import sympy
 import typing
 import varname
 
-from masmod.symbols._theta import Theta
-from masmod.symbols._omega import Eta
-from masmod.utils.nanoid import generate_nanoid
+from ._theta import Theta
+from ._omega import Eta
+from ..utils.nanoid import generate_nanoid
 
 
 class Phi(sympy.Symbol):

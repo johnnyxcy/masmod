@@ -1,10 +1,59 @@
 {
+  "psi-header.config": {
+    "forceToTop": true,
+    "company": "MaS Dev Team"
+  },
+  "psi-header.changes-tracking": {
+    "isActive": true,
+    "modAuthor": "Modified By:",
+    "modDate": "Last Modified:",
+    "replace": ["File:"],
+    "autoHeader": "manualSave",
+    "include": [
+      "python",
+      "javascript",
+      "javascriptreact",
+      "typescript",
+      "typescriptreact",
+      "cpp"
+    ]
+  },
+  "psi-header.templates": [
+    {
+      "language": "*",
+      "template": [
+        "File: <<projectname>><<filerelativepath>>",
+        "",
+        "Author: <<author>> <<<authoremail>>>",
+        "",
+        "File Created: <<filecreated('MM/DD/YYYY hh:mm a')>>",
+        "",
+        "Last Modified: <<dateformat('MM/DD/YYYY hh:mm a')>>",
+        "",
+        "Modified By: <<author>> <<<authoremail>>>",
+        "",
+        "Copyright (c) <<yeartoyear(fc, now)>> <<company>>"
+      ]
+    }
+  ],
+  "psi-header.lang-config": [
+    {
+      "language": "python",
+      "begin": "############################################################",
+      "end": "############################################################",
+      "prefix": "# ",
+      "beforeHeader": ["# _*_ coding: utf-8 _*_"],
+      "lineLength": 119,
+      "rootDirFileName": "pyproject.toml"
+    }
+  ],
   "python.formatting.provider": "yapf",
   "python.testing.pytestArgs": ["tests", "-s"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.analysis.typeCheckingMode": "basic",
   "python.linting.mypyEnabled": false,
+  "autoDocstring.docstringFormat": "google",
   "cSpell.words": ["covariate", "ipred", "masmod", "sympy"],
   "files.associations": {
     "*.json": "jsonc",
@@ -71,5 +120,47 @@
     "vector": "cpp",
     "algorithm": "cpp",
     "iostream": "cpp"
-  }
+  },
+  "[cpp]": {
+    "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+  },
+  "C_Cpp.intelliSenseEngine": "Disabled",
+  "clangd.arguments": [
+    // clang-tidy
+    "--clang-tidy",
+    // 同时开启的任务数量
+    "-j=12",
+    // 在后台自动分析文件（基于complie_commands)
+    "--background-index",
+    // 生成至根节点的 build 目录
+    "--compile-commands-dir=build",
+    // 不要默认自动导入头文件
+    "--header-insertion=never",
+    // Prepend a circular dot or space before the completion label
+    "--header-insertion-decorators",
+    // 更详细的补全内容
+    "--completion-style=detailed"
+  ],
+  "testMate.cpp.test.advancedExecutables": [
+    {
+      "pattern": "build/**/*test*",
+      "runTask": {
+        "before": ["[CMake]build-all"]
+      }
+    }
+  ],
+  "testMate.cpp.test.workingDirectory": "${workspaceFolder}",
+  "testMate.cpp.log.logpanel": true,
+  "testMate.cpp.debug.configTemplate": {
+    "type": "lldb",
+    "program": "${exec}",
+    "args": "${argsArray}",
+    "cwd": "${cwd}",
+    "env": "${envObj}",
+    "sourceFileMap": "${sourceFileMapObj}",
+    "externalConsole": false
+  },
+  "task.allowAutomaticTasks": "on",
+  "cmake.preferredGenerators": ["Ninja"],
+  "cmake.cmakePath": "cmake"
 }

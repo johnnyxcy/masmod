@@ -1,6 +1,20 @@
+# _*_ coding: utf-8 _*_
+############################################################
+# File: masmod/tests/symbols/test_context.py
+#
+# Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# File Created: 11/29/2022 01:24 pm
+#
+# Last Modified: 12/06/2022 04:33 pm
+#
+# Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# Copyright (c) 2022 MaS Dev Team
+############################################################
 import unittest
 
-from masmod.symbols._context import VarContext
+from masmod.symbols import VarContext
 
 
 class TestContext(unittest.TestCase):

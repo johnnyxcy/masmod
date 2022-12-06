@@ -1,3 +1,17 @@
+# _*_ coding: utf-8 _*_
+############################################################
+# File: masmod/tests/symbols/test_omega.py
+#
+# Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# File Created: 11/25/2022 08:44 am
+#
+# Last Modified: 12/06/2022 04:33 pm
+#
+# Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# Copyright (c) 2022 MaS Dev Team
+############################################################
 import unittest
 import numpy as np
 from masmod.symbols._omega import OmegaBlock, Eta, omega

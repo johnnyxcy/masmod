@@ -1,12 +1,26 @@
+# _*_ coding: utf-8 _*_
+"""
+File: masmod/masmod/ast_worker/autodiff.py
+
+Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+
+File Created: 12/01/2022 11:23 am
+
+Last Modified: 12/06/2022 04:23 pm
+
+Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+
+Copyright (c) 2022 MaS Dev Team
+"""
 import ast
 import typing
 import sympy
-from masmod.symbols._variable import SymVar
-from masmod.symbols import VarContext, AnyContext
-from masmod.ast_worker.ifelse import IfElseTransformer
-from masmod.translator import ASTSympyTranslator
-from masmod.utils.mask import mask_self_attr, mask_variable
-from masmod.utils.rethrow import rethrow
+
+from .ifelse import IfElseTransformer
+
+from ..symbols import SymVar, VarContext, AnyContext
+from ..translator import ASTSympyTranslator
+from ..utils.mask import mask_variable
 
 
 class AutoDiffNodeTransformer(ast.NodeTransformer):

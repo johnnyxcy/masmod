@@ -1,0 +1,18 @@
+[
+    {
+        "name": "GNU in virtualenv (Windows)",
+        "compilers": {
+            "C": "gcc",
+            "CXX": "g++"
+        },
+        "environmentSetupScript": "${workspaceFolder}/.venv/Scripts/activate"
+    },
+    {
+        "name": "GNU in virtualenv (Unix)",
+        "compilers": {
+            "C": "gcc",
+            "CXX": "g++"
+        },
+        "environmentSetupScript": "${workspaceFolder}/.venv/bin/activate"
+    }
+]

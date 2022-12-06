@@ -1,6 +1,22 @@
+# _*_ coding: utf-8 _*_
+############################################################
+# File: masmod/masmod/symbols/_theta.py
+#
+# Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# File Created: 11/28/2022 08:48 pm
+#
+# Last Modified: 12/06/2022 04:31 pm
+#
+# Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# Copyright (c) 2022 MaS Dev Team
+############################################################
+
 from varname import varname
-from masmod.symbols._variable import SymVar
-from masmod.symbols._typings import ValueType, BoundsType
+
+from ._variable import SymVar
+from ._typings import ValueType, BoundsType
 
 __all__ = ["theta", "Theta"]
 

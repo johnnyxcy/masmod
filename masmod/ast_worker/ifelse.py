@@ -1,11 +1,25 @@
+# _*_ coding: utf-8 _*_
+"""
+File: masmod/masmod/ast_worker/ifelse.py
+
+Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+
+File Created: 12/06/2022 01:21 pm
+
+Last Modified: 12/06/2022 04:22 pm
+
+Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+
+Copyright (c) 2022 MaS Dev Team
+"""
 import ast
 from typing import Any, Literal
 import sympy
 import copy
 import dataclasses
 
-from masmod.symbols import AnyContext
-from masmod.utils.rethrow import rethrow
+from ..symbols import AnyContext
+from ..utils.rethrow import rethrow
 
 
 @dataclasses.dataclass

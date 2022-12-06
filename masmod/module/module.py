@@ -1,15 +1,30 @@
+# _*_ coding: utf-8 _*_
+############################################################
+# File: masmod/masmod/module/module.py
+#
+# Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# File Created: 12/01/2022 11:23 am
+#
+# Last Modified: 12/06/2022 04:31 pm
+#
+# Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# Copyright (c) 2022 MaS Dev Team
+############################################################
 import abc
 import inspect
 import sympy
 import typing
 import ast
-from masmod.module._base import BaseModule
-from masmod.symbols import AnyContext, Expression
-from masmod.ast_worker.autodiff import AutoDiffNodeTransformer
-from masmod.ast_worker.func_return import FuncReturnVisitor
-from masmod.translator.cc_trans import CCTranslator, FuncSignature, ValueType
-from masmod.utils.mask import mask_variable
-from masmod.utils.rethrow import rethrow
+from ._base import BaseModule
+from ..symbols import AnyContext, Expression
+from ..ast_worker import AutoDiffNodeTransformer, FuncReturnVisitor
+
+from ..translator.cc_trans import CCTranslator, FuncSignature, ValueType
+
+from ..utils.mask import mask_variable
+from ..utils.rethrow import rethrow
 
 
 class Module(BaseModule):
