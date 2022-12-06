@@ -6,7 +6,7 @@
 #
 # File Created: 11/28/2022 09:47 pm
 #
-# Last Modified: 12/06/2022 04:32 pm
+# Last Modified: 12/06/2022 05:15 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -142,7 +142,10 @@ class CCTranslator:
         """主入口，翻译 python ast => cc syntax"""
         translated: typing.List[str] = [
             *self.__include_headers(),
-            ""  # empty line
+            "",  # empty line
+            "class __Module",
+            "{",
+            "public:"
         ]
 
         for part in self._cls_def.body:
@@ -151,6 +154,8 @@ class CCTranslator:
                     translated.extend(self._do_translate_func(part))
             else:
                 self.__raise(part, NotImplementedError("尚不支持 class 功能 {0}".format(part)))
+
+        translated.append("};")
 
         return translated
 
