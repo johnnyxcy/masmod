@@ -4,11 +4,11 @@
 #include <any>
 #include <map>
 #include <Eigen/Dense>
-
+#include <iostream>
+#include <vector>
 using std::exp;
 using std::log;
 using std::pow;
-
 
 
 // def pred(self, t: float) -> tuple[Expression, Expression]:
@@ -193,7 +193,7 @@ k__wrt_eta_ka = 0;
 k__wrt_eta_alag = 0;
 k__wrt_eps_prop = 0;
 k__wrt_eps_add = 0;
-__bool_1 = alag < t;
+__bool_1 = alag > t;
 __else__ipred = 0;
 __else__ipred__wrt_theta_V = (((0+(((((((-1*self__dose)*pow(self__theta_V, -2))*self__theta_ka)*pow(((0+(self__theta_ka*exp(self__eta_ka)))+((((-1*self__theta_Cl)*pow(self__theta_V, -1))*exp(self__eta_Cl))*exp((-1*self__eta_V)))), -1))*((0+(-1*exp((((-1*self__theta_ka)*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*exp(self__eta_ka)))))+exp((((((-1*self__theta_Cl)*pow(self__theta_V, -1))*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*exp(self__eta_Cl))*exp((-1*self__eta_V))))))*exp((-1*self__eta_V)))*exp(self__eta_ka)))+(((((((((-1*self__dose)*self__theta_Cl)*pow(self__theta_V, -3))*self__theta_ka)*pow(((0+(self__theta_ka*exp(self__eta_ka)))+((((-1*self__theta_Cl)*pow(self__theta_V, -1))*exp(self__eta_Cl))*exp((-1*self__eta_V)))), -2))*((0+(-1*exp((((-1*self__theta_ka)*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*exp(self__eta_ka)))))+exp((((((-1*self__theta_Cl)*pow(self__theta_V, -1))*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*exp(self__eta_Cl))*exp((-1*self__eta_V))))))*exp(self__eta_Cl))*exp(((-1*2)*self__eta_V)))*exp(self__eta_ka)))+(((((((((self__dose*self__theta_Cl)*pow(self__theta_V, -3))*self__theta_ka)*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*pow(((0+(self__theta_ka*exp(self__eta_ka)))+((((-1*self__theta_Cl)*pow(self__theta_V, -1))*exp(self__eta_Cl))*exp((-1*self__eta_V)))), -1))*exp(self__eta_Cl))*exp(((-1*2)*self__eta_V)))*exp(self__eta_ka))*exp((((((-1*self__theta_Cl)*pow(self__theta_V, -1))*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*exp(self__eta_Cl))*exp((-1*self__eta_V))))));
 __else__ipred__wrt_theta_Cl = ((0+(((((((self__dose*pow(self__theta_V, -2))*self__theta_ka)*pow(((0+(self__theta_ka*exp(self__eta_ka)))+((((-1*self__theta_Cl)*pow(self__theta_V, -1))*exp(self__eta_Cl))*exp((-1*self__eta_V)))), -2))*((0+(-1*exp((((-1*self__theta_ka)*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*exp(self__eta_ka)))))+exp((((((-1*self__theta_Cl)*pow(self__theta_V, -1))*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*exp(self__eta_Cl))*exp((-1*self__eta_V))))))*exp(self__eta_Cl))*exp(((-1*2)*self__eta_V)))*exp(self__eta_ka)))+(((((((((-1*self__dose)*pow(self__theta_V, -2))*self__theta_ka)*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*pow(((0+(self__theta_ka*exp(self__eta_ka)))+((((-1*self__theta_Cl)*pow(self__theta_V, -1))*exp(self__eta_Cl))*exp((-1*self__eta_V)))), -1))*exp(self__eta_Cl))*exp(((-1*2)*self__eta_V)))*exp(self__eta_ka))*exp((((((-1*self__theta_Cl)*pow(self__theta_V, -1))*((0+t)+((-1*self__theta_alag)*exp(self__eta_alag))))*exp(self__eta_Cl))*exp((-1*self__eta_V))))));
@@ -206,8 +206,8 @@ __else__ipred__wrt_eta_alag = ((((((self__dose*pow(self__theta_V, -1))*self__the
 __else__ipred__wrt_eps_prop = 0;
 __else__ipred__wrt_eps_add = 0;
 __bool_1__ipred = 0;
-// if alag < t:
-// if alag < t:
+// if alag > t:
+// if alag > t:
 if (__bool_1)
 {
 // ipred = 0
@@ -394,14 +394,14 @@ int main() {
 // __self__eta_alag = std::any_cast<double>(self["eta_alag"]);
 // __self__eps_prop = std::any_cast<double>(self["eps_prop"]);
 // __self__eps_add = std::any_cast<double>(self["eps_add"]);
-    self["theta_V"] = 7.8144;
-    self["theta_Cl"] = 0.13413;
-    self["theta_ka"] = 0.57149;
-    self["theta_alag"] = 0.;
-    self["eta_Cl"] = 0.70017;
-    self["eta_V"] = -0.02102;
-    self["eta_ka"] = -0.95055;
-    self["eta_alag"] = 0.;
+    self["theta_V"] = 7.9789;
+    self["theta_Cl"] = 0.13215;
+    self["theta_ka"] = 1.354;
+    self["theta_alag"] = 0.82427;
+    self["eta_Cl"] = 0.77839;
+    self["eta_V"] = -0.027468;
+    self["eta_ka"] = -1.5272;
+    self["eta_alag"] = -0.39529;
     self["eps_prop"] = 0.;
     self["eps_add"] = 0.;
     self["dose"] = 100.0;
@@ -418,9 +418,16 @@ int main() {
 //         __container(6) = __self__ipred_wrt_eta_Cl;
 // __container(7) = __self__ipred_wrt_eta_V;
 // __container(8) = __self__ipred_wrt_eta_ka;
+        std::cout << "alag = " << std::any_cast<double>(locals["alag"]) << std::endl;
+        std::cout << "__bool_1 = " << std::any_cast<int>(locals["__bool_1"]) << std::endl;
+        std::cout << "__else__ipred = " << std::any_cast<double>(locals["__else__ipred"]) << std::endl;
+        std::cout << "__ipred = " << container(0) << std::endl;
         std::cout << "__self__ipred_wrt_eta_Cl = " << container(6) << std::endl;
         std::cout << "__self__ipred_wrt_eta_V = " << container(7) << std::endl;
         std::cout << "__self__ipred_wrt_eta_ka = " << container(8) << std::endl;
+        std::cout << "__self__ipred_wrt_eta_alag = " << container(9) << std::endl;
+        std::cout << "y__wrt_eps_prop = " << container(20) << std::endl;
+        std::cout << "y__wrt_eps_add = " << container(21) << std::endl;
         // std::cout << "ipred=" << std::any_cast<double>(locals["__self__ipred"]) << std::endl;
         std::cout << "==========" << std::endl;
     }
