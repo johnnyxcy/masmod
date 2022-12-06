@@ -5,6 +5,7 @@ import copy
 import dataclasses
 
 from masmod.symbols import AnyContext
+from masmod.utils.rethrow import rethrow
 
 
 @dataclasses.dataclass
@@ -12,6 +13,13 @@ class HoistingCondition:
     variable_name: str
     assignment: ast.Assign
     variable_symbol: sympy.Expr
+
+
+@dataclasses.dataclass
+class VisitIfBodyResult:
+    skip_eval_assignments: list[ast.Assign]
+    # TODO: @xuchongyi 支持 if else 中的变量重新赋值
+    # overwriting_assignments: dict[str, ast.Assign]  # overwriting_variable_name => overwriting_assignment
 
 
 VariableNameType = str
@@ -88,13 +96,17 @@ class IfElseVariableHoistingTransformer(ast.NodeTransformer):
 class IfElseTransformer(ast.NodeTransformer):
     """处理 if else 的变量提升"""
 
-    def __init__(self, if_node: ast.If, global_context: AnyContext, local_context: AnyContext) -> None:
+    def __init__(
+        self, source_code: str, if_node: ast.If, global_context: AnyContext, local_context: AnyContext
+    ) -> None:
+        self._source_code = source_code
         self._if_node = if_node
         self._hoist_assignments: dict[str, ast.Assign] = {}  # must be in order
         self._global_ctx = global_context
         self._local_ctx = local_context
 
         self.skip_eval_assignments: list[ast.Assign] = []
+        self.overwriting_var_names: set[str] = set()
 
     def visit_If(self, node: ast.If) -> Any:
         """如果是 if"""
@@ -103,7 +115,7 @@ class IfElseTransformer(ast.NodeTransformer):
         condition = self._hoist_if_test(node)
 
         if not isinstance(node.test, ast.Name):
-            raise ValueError("必须要将 if 的 test hoist 为 local 变量")
+            rethrow(self._source_code, node, ValueError("必须要将 if 的 test hoist 为 local 变量"))
 
         # 将 if 的条件作为需要预先定义的变量
         self._hoist_assignments[condition.variable_name] = condition.assignment
@@ -113,7 +125,7 @@ class IfElseTransformer(ast.NodeTransformer):
         self._local_ctx[condition.variable_name] = condition.variable_symbol
         if_ctx = self._local_ctx.copy()
         # 执行 if 的 body，获取 if body 中需要跳过的 evaluation
-        if_skip_assignments = self._visit_if_body(node.body, if_ctx)
+        visit_if_result = self._visit_if_body(node.body, if_ctx)
         # TODO: 如果是 redeclare 比如
         # a = 10
         # if true:
@@ -121,6 +133,8 @@ class IfElseTransformer(ast.NodeTransformer):
         # 这个方式存在问题
         # 检查哪些变量是新增的，如果所有的 if/else 中都有这个变量，那么需要对其执行变量提升
         hoisting_var_names = set(if_ctx.keys()) - set(self._local_ctx.keys())
+        # TODO: @xuchongyi 重新赋值逻辑
+        # hoisting_var_names.update(visit_if_result.overwriting_assignments.keys())
 
         # 获取 elif/else 的变量 masking map
         orelse_block_hoist_masking: HoistingMaskUpMappingType = {}
@@ -131,7 +145,7 @@ class IfElseTransformer(ast.NodeTransformer):
             elif_condition = self._hoist_if_test(elif_)
 
             if not isinstance(elif_.test, ast.Name):
-                raise ValueError("必须要将 if 的 test hoist 为 local 变量")
+                rethrow(self._source_code, node, ValueError("必须要将 if 的 test hoist 为 local 变量"))
 
             # 赋值 test condition 的临时变量
             self._hoist_assignments[elif_condition.variable_name] = elif_condition.assignment
@@ -142,20 +156,27 @@ class IfElseTransformer(ast.NodeTransformer):
 
             elif_ctx = self._local_ctx.copy()
             # 处理 elif 的 body
-            elif_skip_assignments = self._visit_if_body(elif_.body, elif_ctx)
+            elif_visit_result = self._visit_if_body(elif_.body, elif_ctx)
             # 获取 elif 中额外赋值的变量，并获取与 hoisting_var_names 的交集，得到更新后的需要变量提升的变量
             hoisting_var_names.intersection_update(set(elif_ctx.keys()) - set(self._local_ctx.keys()))
+            # TODO: @xuchongyi 重新赋值逻辑
+            # hoisting_var_names.update(elif_visit_result.overwriting_assignments.keys())
 
             else_ctx = self._local_ctx.copy()
             # 处理 else 的 body
-            else_skip_assignments = self._visit_if_body(elif_.orelse, else_ctx)
+            else_visit_result = self._visit_if_body(elif_.orelse, else_ctx)
             # 获取 else 中额外赋值的变量，并获取与 hosting_var_names 的交集，更新变量提升
             hoisting_var_names.intersection_update(set(else_ctx.keys()) - set(self._local_ctx.keys()))
+            # TODO: @xuchongyi 重新赋值逻辑
+            # hoisting_var_names.update(else_visit_result.overwriting_assignments.keys())
 
             # 使用 transformer 将 elif 中需要变量提升的变量 mask 为 local 变量
             elif_transformer = IfElseVariableHoistingTransformer(if_node=elif_, hoisting=hoisting_var_names)
             self._transform_if_else_variable_hoisting(
-                transformer=elif_transformer, body=elif_.body, ctx=elif_ctx, skip_assignments=elif_skip_assignments
+                transformer=elif_transformer,
+                body=elif_.body,
+                ctx=elif_ctx,
+                skip_assignments=elif_visit_result.skip_eval_assignments
             )
             # 合并 masking
             orelse_block_hoist_masking = join_mask_mapping(orelse_block_hoist_masking, elif_transformer.mask_mp)
@@ -165,7 +186,10 @@ class IfElseTransformer(ast.NodeTransformer):
             # 使用 transformer 将 else 中需要变量提升的变量 mask 为 local 变量
             else_transformer = IfElseVariableHoistingTransformer(if_node="else", hoisting=hoisting_var_names)
             self._transform_if_else_variable_hoisting(
-                transformer=else_transformer, body=elif_.orelse, ctx=else_ctx, skip_assignments=else_skip_assignments
+                transformer=else_transformer,
+                body=elif_.orelse,
+                ctx=else_ctx,
+                skip_assignments=else_visit_result.skip_eval_assignments
             )
             # 合并 masking
             orelse_block_hoist_masking = join_mask_mapping(orelse_block_hoist_masking, else_transformer.mask_mp)
@@ -175,16 +199,23 @@ class IfElseTransformer(ast.NodeTransformer):
             # 将 elif 重新赋值回 orelse 的 ast
             node.orelse[0] = elif_
 
-        else:  # node.orelse is body part in else block
+        elif len(node.orelse) > 0:  # node.orelse is body part in else block
             else_ctx = self._local_ctx.copy()
             # 处理 else 的 body
-            else_skip_assignments = self._visit_if_body(node.orelse, else_ctx)
+            else_visit_result = self._visit_if_body(node.orelse, else_ctx)
+
             # 获取 else 中额外赋值的变量，并获取与 hosting_var_names 的交集，更新变量提升
             hoisting_var_names.intersection_update(set(else_ctx.keys()) - set(self._local_ctx.keys()))
+            # TODO: @xuchongyi 重新赋值逻辑
+            # hoisting_var_names.update(else_visit_result.overwriting_assignments.keys())
+
             # 使用 transformer 将 else 中需要变量提升的变量 mask 为 local 变量
             else_transformer = IfElseVariableHoistingTransformer(if_node="else", hoisting=hoisting_var_names)
             self._transform_if_else_variable_hoisting(
-                transformer=else_transformer, body=node.orelse, ctx=else_ctx, skip_assignments=else_skip_assignments
+                transformer=else_transformer,
+                body=node.orelse,
+                ctx=else_ctx,
+                skip_assignments=else_visit_result.skip_eval_assignments
             )
             # 合并 masking
             orelse_block_hoist_masking = join_mask_mapping(orelse_block_hoist_masking, else_transformer.mask_mp)
@@ -194,7 +225,10 @@ class IfElseTransformer(ast.NodeTransformer):
         # 使用 transformer 将 if 中需要变量提升的变量 mask 为 local 变量
         if_body_transformer = IfElseVariableHoistingTransformer(if_node=node, hoisting=hoisting_var_names)
         self._transform_if_else_variable_hoisting(
-            transformer=if_body_transformer, body=node.body, ctx=if_ctx, skip_assignments=if_skip_assignments
+            transformer=if_body_transformer,
+            body=node.body,
+            ctx=if_ctx,
+            skip_assignments=visit_if_result.skip_eval_assignments
         )
         # 合并 masking
         hoist_masking = join_mask_mapping(if_body_transformer.mask_mp, orelse_block_hoist_masking)
@@ -247,7 +281,7 @@ class IfElseTransformer(ast.NodeTransformer):
 
         return transformed
 
-    def _visit_if_body(self, body: list[ast.stmt], ctx: AnyContext) -> list[ast.Assign]:
+    def _visit_if_body(self, body: list[ast.stmt], ctx: AnyContext) -> VisitIfBodyResult:
         """访问 if.body block，如果 block 中有 if，那么会生成子 transformer
 
         Args:
@@ -255,20 +289,21 @@ class IfElseTransformer(ast.NodeTransformer):
             ctx (AnyContext): 运行时的 context
 
         Returns:
-            list[ast.Assign]: 需要忽略的 assignment
+            VisitIfBodyResult: 访问的结果集合
         """
         # outer_ctx = ctx.copy()
 
         body_: list[ast.stmt] = []
         skip_assignments: list[ast.Assign] = []
+        overwriting_assignments: dict[str, ast.Assign] = {}
         for stmt_node in body:
             if isinstance(stmt_node, ast.If):
-                _transformer = IfElseTransformer(stmt_node, self._global_ctx, ctx)
+                _transformer = IfElseTransformer(self._source_code, stmt_node, self._global_ctx, ctx)
                 transformed = _transformer.visit_If(stmt_node)
                 skip_assignments.extend(_transformer.skip_eval_assignments)
                 body_.extend(transformed)
             elif isinstance(stmt_node, ast.Assign):
-                self._visit_assign_within_context(stmt_node, ctx)
+                overwriting_assignments.update(self._visit_assign_within_context(stmt_node, ctx))
                 body_.append(stmt_node)
             else:
                 body_.append(stmt_node)
@@ -276,20 +311,25 @@ class IfElseTransformer(ast.NodeTransformer):
         body.clear()
         body.extend(body_)
 
-        return skip_assignments
+        return VisitIfBodyResult(
+            skip_eval_assignments=skip_assignments
+            # TODO: @xuchongyi 重新赋值逻辑
+            # overwriting_assignments=overwriting_assignments
+        )
 
-        # for key in outer_ctx.keys():
-        #     if id(ctx[key]) != id(outer_ctx[key]):
-        #         overrides[key] = ctx[key]
+    def _visit_assign_within_context(self, node: ast.Assign, ctx: AnyContext) -> dict[str, ast.Assign]:
+        overwriting_assignments: dict[str, ast.Assign] = {}
 
-    def _visit_assign_within_context(self, node: ast.Assign, ctx: AnyContext) -> None:
         if len(node.targets) == 1:
             target, = node.targets
             if isinstance(target, ast.Name):
                 if target.id in ctx.keys():
-                    print('11')
+                    # TODO: @xuchongyi 重新赋值逻辑
+                    # overwriting_assignments[target.id] = node
+                    rethrow(self._source_code, node, NotImplementedError("暂不支持重新赋值的逻辑"))
         # eval assignment，赋值到 ctx
         exec(ast.unparse(node), self._global_ctx.as_dict(), ctx.as_dict())
+        return overwriting_assignments
 
     def _transform_if_else_variable_hoisting(
         self,
@@ -325,9 +365,9 @@ class IfElseTransformer(ast.NodeTransformer):
             pass
         elif isinstance(node.test, ast.Name):
             if node.test.id not in self._local_ctx.keys():
-                raise NameError("变量名 {0} 没有定义".format(node.test.id))
+                rethrow(self._source_code, node, NameError("变量名 {0} 没有定义".format(node.test.id)))
         else:
-            raise NotImplementedError("暂不支持的 if 判断")
+            rethrow(self._source_code, node, NotImplementedError("暂不支持的 if 判断"))
         condition_assignment = ast.Assign(targets=(ast.Name(id=condition_target_id),), value=node.test, lineno=None)
 
         node.test = ast.Name(id=condition_target_id)

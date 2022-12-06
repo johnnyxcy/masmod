@@ -27,12 +27,8 @@ class EmaxModel(Module):
 
     def pred(self, t) -> tuple[Expression, Expression]:
 
-        em = 0
         if self.height > 180:
-            if self.wt > 0:
-                em = self.theta_em * (self.wt / 50)**0.75 * ff.exp(self.eta_em)
-            else:
-                em = self.theta_em * (1 + self.eta_em) + 1 - 1
+            em = self.theta_em * (self.wt / 50)**0.75 * ff.exp(self.eta_em)
         else:
             em = self.theta_em * (1 + self.eta_em)
 

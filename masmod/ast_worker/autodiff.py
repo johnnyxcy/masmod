@@ -62,7 +62,12 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
         return node
 
     def visit_If(self, node: ast.If) -> typing.Any:
-        transformer = IfElseTransformer(if_node=node, global_context=self._global_context, local_context=self._local_context)
+        transformer = IfElseTransformer(
+            source_code=self._source_code,
+            if_node=node,
+            global_context=self._global_context,
+            local_context=self._local_context
+        )
         _node: list[ast.stmt] = transformer.visit(node)
         transformed: list[ast.stmt] = []
 
@@ -80,11 +85,6 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
     def visit_Assign(self, node: ast.Assign) -> typing.Any:
         lhs = node.targets
 
-        # try:
-        #     rhs_expr = eval(ast.unparse(rhs), self._global_context.as_dict(), self._local_context.as_dict())
-        # except Exception as e:
-        #     rethrow(self._source_code, rhs, e)
-
         # deal with diff
         diffs: list[ast.Assign] = []
         if len(lhs) == 1:
@@ -101,21 +101,6 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
                     diffs.extend(
                         self._append_partial_derivative(expr=rhs_expr, var_name_prefix=mask_variable(token.id))
                     )
-
-            # elif isinstance(token, ast.Attribute):
-            #     if isinstance(token.value, ast.Name):
-            #         if token.value.id == "self":
-            #             self._local_context.self[token.attr] = rhs_expr
-            #             if isinstance(rhs_expr, sympy.Expr):
-            #                 diffs.extend(
-            #                     self._append_partial_derivative(
-            #                         expr=rhs_expr, var_name_prefix=mask_self_attr(token.attr)
-            #                     )
-            #                 )
-
-            #         else:
-            #             raise NotImplementedError()
-
             else:
                 raise NotImplementedError()
         else:

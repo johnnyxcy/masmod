@@ -7,9 +7,9 @@ class FuncReturnVisitor(ast.NodeVisitor):
 
     def __init__(self, source_code: str) -> None:
         super().__init__()
+        self._source_code = source_code
         self._func_def: ast.FunctionDef | None = None
         self._return_expr: ast.Return | None = None
-        self._source_code = source_code
 
     @property
     def func_def(self) -> ast.FunctionDef:
