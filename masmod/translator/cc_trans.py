@@ -114,12 +114,6 @@ class CCTranslator:
         self._covariate_context = covariate_context
 
         self._self_ctx = self_context.as_dict()
-        # for attr_name, attr_type in self._reserved_self_attr.items():
-        #     if attr_type == ValueType.VALUE_TYPE_DOUBLE:
-        #         self._self_ctx[attr_name] = float(0.0)
-        #     else:
-        #         raise NotImplementedError("暂不支持 {0} 类型的 self 属性".format(attr_type.value))
-
         self._global_ctx = {
             "exp": exp,
             "log": log,
@@ -131,6 +125,7 @@ class CCTranslator:
         self._result_variables = result_variables
 
     def translate(self) -> typing.List[str]:
+        """主入口，翻译 python ast => cc syntax"""
         translated: typing.List[str] = [
             *self.__include_headers(),
             ""  # empty line
@@ -146,11 +141,12 @@ class CCTranslator:
         return translated
 
     def _do_translate_func(self, func_def: ast.FunctionDef) -> typing.List[str]:
+        """翻译函数体"""
         translated: typing.List[str] = []
 
         ctx: Ctx = {}
 
-        # process signature
+        # 处理函数签名
         signature: FuncSignature
         if func_def.name in self._trans_functions.keys():
             signature = self._inject_self_to_signature(self._trans_functions[func_def.name])
@@ -179,7 +175,7 @@ class CCTranslator:
             "", "// #region 从 self context 获取变量值", *self._retrieve_vars_from_self(), "// #endregion", ""
         ]
 
-        # process body
+        # 处理函数内容
         for stmt in func_def.body:
             translated_body.extend(self._do_translate_statement(stmt, ctx))
 
@@ -202,8 +198,9 @@ class CCTranslator:
         return translated
 
     def _do_translate_statement(self, statement: ast.stmt, ctx: Ctx) -> typing.List[str]:
+        """翻译 statement"""
         translated: typing.List[str] = []
-        if self.__locateable(statement):
+        if self.__locatable(statement):
             translated.append(f"// {self._source_code_lines[statement.lineno - 1].strip()}")
         if isinstance(statement, ast.Assign):
             translated.extend(self._do_translate_assign(statement, ctx))
@@ -219,12 +216,13 @@ class CCTranslator:
         return translated
 
     def _do_translate_assign(self, assign: ast.Assign, ctx: Ctx) -> typing.List[str]:
+        """翻译赋值 block"""
         translated: typing.List[str] = []
 
         targets = assign.targets
 
         if len(targets) != 1:
-            raise ValueError()
+            self.__raise(assign, ValueError("赋值变量过多，无法处理"))
 
         target = self._do_eval_expr(targets[0], ctx)
         value = self._do_eval_expr(assign.value, ctx)
@@ -234,6 +232,8 @@ class CCTranslator:
 
         if target.v in ctx.keys():
             _declared_typ = ctx[target.v]
+            # 不允许重新定义类型
+            # 特殊情况: 两个变量都是数值类型，那么使用 double 处理
             if _declared_typ != value.typ and not (_declared_typ.is_numeric() and value.typ.is_numeric()):
                 self.__raise(
                     assign, TypeError("不允许重新指定变量 {0} 的类型 {1} => {2}".format(target.v, _declared_typ, value.typ))
@@ -245,14 +245,16 @@ class CCTranslator:
         return translated
 
     def _do_translate_if(self, if_: ast.If, ctx: Ctx, is_else_if: bool = False) -> typing.List[str]:
+        """翻译 if block"""
         translated: typing.List[str] = []
+
+        # if 的比较条件
         test_condition = self._do_eval_expr(if_.test, ctx)
 
         if test_condition.typ is None or not test_condition.typ.is_numeric():
             self.__raise(if_, TypeError("if 的比较条件必须是 bool 类型而不是 {0}".format(test_condition.typ)))
 
-        # test
-        if self.__locateable(if_):
+        if self.__locatable(if_):
             translated.append(f"// {self._source_code_lines[if_.lineno - 1].strip()}")
 
         branch_pref = "if" if not is_else_if else "else if "
@@ -264,9 +266,10 @@ class CCTranslator:
 
         translated.append("}")
 
+        # 如果是 else if
         if len(if_.orelse) == 1 and isinstance(if_.orelse[0], ast.If):
             translated.extend(self._do_translate_if(if_.orelse[0], ctx, is_else_if=True))
-        else:  # is else statement
+        else:  # 如果是 else
             translated.append("else {")
             for stmt in if_.orelse:
                 translated.extend(self._do_translate_statement(stmt, ctx))
@@ -276,6 +279,7 @@ class CCTranslator:
         return translated
 
     def _do_eval_expr(self, expr: ast.expr, ctx: Ctx) -> EvaluatedExpr:
+        """处理一个表达式"""
         # 如果是个表达式，直接 eval
         if isinstance(expr, ast.Expression):
             return self._do_eval_expr(expr.body, ctx)
@@ -309,6 +313,7 @@ class CCTranslator:
             if not left.typ or not right.typ:
                 self.__raise(expr, ValueError("无法获取正确的类型"))
 
+            # 只能比较两个数值类型或者比较符号两边的类型相同
             if not (left.typ.is_numeric() and right.typ.is_numeric()) and left.typ != right.typ:
                 self.__raise(expr, TypeError("表达式两边的类型不匹配"))
 
@@ -400,6 +405,7 @@ class CCTranslator:
         self.__raise(expr, NotImplementedError("尚不支持 expression {0}".format(expr)))
 
     def _do_eval_constant(self, constant: ast.Constant) -> EvaluatedExpr:
+        """处理常数"""
         v: str
         typ: ValueType = ValueType.from_val(constant.value)
 
@@ -413,6 +419,7 @@ class CCTranslator:
         return EvaluatedExpr(v=v, typ=typ, token=constant)
 
     def _do_eval_op(self, operator: ast.operator) -> EvaluatedExpr:
+        """处理二元表达式的符号 +, -, *, /"""
         if isinstance(operator, ast.Add):
             return EvaluatedExpr(v="+", token=operator)
         elif isinstance(operator, ast.Sub):
@@ -427,6 +434,7 @@ class CCTranslator:
         self.__raise(operator, NotImplementedError("尚不支持 operator {0}".format(operator)))
 
     def _do_eval_unaryop(self, unary_operator: ast.unaryop) -> EvaluatedExpr:
+        """处理正负号 +, -"""
         if isinstance(unary_operator, ast.UAdd):
             return EvaluatedExpr(v="+", token=unary_operator)
         elif isinstance(unary_operator, ast.USub):
@@ -435,6 +443,7 @@ class CCTranslator:
         self.__raise(unary_operator, NotImplementedError("尚不支持 unary_operator {0}".format(unary_operator)))
 
     def _do_eval_cmpop(self, compare_operator: ast.cmpop) -> EvaluatedExpr:
+        """处理比较的符号 ==, >, >=, <, <=, !="""
         if isinstance(compare_operator, ast.Eq):
             return EvaluatedExpr(v="==", token=compare_operator)
         elif isinstance(compare_operator, ast.Gt):
@@ -450,8 +459,9 @@ class CCTranslator:
         self.__raise(compare_operator, NotImplementedError("尚不支持 compare_operator {0}".format(compare_operator)))
 
     def _do_translate_func_signature(self, func_def: ast.FunctionDef, signature: FuncSignature) -> typing.List[str]:
+        """翻译函数签名"""
         translated: typing.List[str] = []
-        if self.__locateable(func_def):
+        if self.__locatable(func_def):
             translated.append(f"// {self._source_code_lines[func_def.lineno - 1].strip()}")
 
         func_signature_args: typing.List[str] = []
@@ -466,9 +476,10 @@ class CCTranslator:
         return translated
 
     def _extract_func_signature(self, func_def: ast.FunctionDef) -> FuncSignature:
-        raise NotImplementedError("尚不支持 custom function")
+        self.__raise(func_def, NotImplementedError("暂不支持用户自定义 function"))
 
     def _inject_self_to_signature(self, signature: FuncSignature) -> FuncSignature:
+        """向函数签名中添加 self context"""
         signature_ = deepcopy(signature)
         if "self" not in signature.args.keys():
             # "self" is a special case to handle
@@ -478,6 +489,7 @@ class CCTranslator:
         return signature_
 
     def _inject_result_container_to_signature(self, signature: FuncSignature) -> FuncSignature:
+        """向函数签名中添加 __local 和 __container 参数"""
         if "__local" in signature.args.keys():
             raise ValueError("__local 是函数的预留字段，不能够用于函数签名")
 
@@ -489,6 +501,7 @@ class CCTranslator:
         return signature
 
     def _assert_func_signature_is_valid(self, func_def: ast.FunctionDef, signature: FuncSignature) -> None:
+        """检查函数签名是否合法"""
         for arg in func_def.args.args:
             if arg.arg not in signature.args.keys():
                 self.__raise(arg, ValueError("提供的函数签名 {0} 没有包含 {1}，无法处理对应参数".format(signature, arg.arg)))
@@ -497,6 +510,7 @@ class CCTranslator:
             self.__raise(arg, NotImplementedError("尚未实现 kwarg 的翻译"))
 
     def _retrieve_vars_from_self(self) -> typing.List[str]:
+        """生成代码从 self context 中获取变量 / 协变量"""
         retrieved_vars: typing.List[str] = ["// 变量"]
         for var_name in self._var_context.keys():
             retrieved_vars.append(f"{mask_self_attr(var_name)} = std::any_cast<double>(self[\"{var_name}\"]);")
@@ -508,39 +522,18 @@ class CCTranslator:
                 f"{mask_self_attr(var_name)} = std::any_cast<{covariate_dtype.value}>(self[\"{var_name}\"]);"
             )
 
-        # for const_name, const_val in self._const_context.items():
-        #     val_typ = ValueType.from_constant(const_val)
-        #     retrieved_vars.append(
-        #         f"{mask_self_attr(const_name)} = std::any_cast<{val_typ.value}>(self[\"{const_name}\"])"
-        #     )
         return retrieved_vars
 
-    # def _define_self_struct(self) -> typing.List[str]:
-    #     definitions: typing.List[str] = [f"struct Self_", "{", "// #region user defined attributes"]
-    #     for variable_name in self._var_context.keys():
-    #         definitions.append(f"double {variable_name};")
-
-    #     definitions.extend([
-    #         "// #endregion",
-    #         "",  # empty line
-    #         "// #region reserved attributes",
-    #     ])
-
-    #     for attr_name, attr_type in self._reserved_self_attr.items():
-    #         definitions.append(f"{attr_type.value} {attr_name};")
-
-    #     definitions.extend(["// #endregion", "}"])
-
-    #     return definitions
-
     def __raise(self, token: ast.AST, error: BaseException) -> typing.NoReturn:
+        """重新抛出异常，并提供对应的 syntax error"""
         rethrow("\n".join(self._source_code_lines), token, error)
 
-    def __locateable(self, token: ast.AST) -> bool:
+    def __locatable(self, token: ast.AST) -> bool:
+        """检查 token 是否有 lineno 和 col offset"""
         return locatable(token)
 
     def __include_headers(self) -> typing.List[str]:
-
+        """生成 include 头文件"""
         return [
             f"// Auto Generate at {datetime.now()}",
             "#include <cmath>",

@@ -35,7 +35,7 @@ class Warfarin(Module):
         ka = self.theta_ka * exp(self.eta_ka)
         k = cl / v
 
-        if alag < t:
+        if alag > t:
             ipred = 0
         else:
             ipred = self.dose / v * ka / (ka - k) * (exp(-k * (t - alag)) - exp(-ka * (t - alag)))
