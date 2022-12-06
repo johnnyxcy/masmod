@@ -52,11 +52,17 @@ class VarContext(typing.Generic[T]):
     def items(self) -> dict_items[str, T]:
         return self._d.items()
 
+    def update(self, o: VarContext[T]) -> None:
+        self._d.update(o)
+
     def __setitem__(self, __name: str, __value: typing.Any) -> None:
         # TODO: maybe add type check
         # if self.generic_T != typing.Any and not isinstance(__value, self.generic_T):
         #     raise TypeError("{0} 是 {1} 类型，与给定的 {2} 类型不符".format(__name, type(__value), self.generic_T))
         self._d[__name] = __value
+
+    def __getitem__(self, __name: str) -> T:
+        return self._d[__name]
 
     def __getattribute__(self, __name: str) -> typing.Any:
         if __name in object.__getattribute__(self, "_d").keys():

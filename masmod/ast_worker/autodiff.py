@@ -62,7 +62,7 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
         return node
 
     def visit_If(self, node: ast.If) -> typing.Any:
-        transformer = IfElseTransformer(global_context=self._global_context, local_context=self._local_context)
+        transformer = IfElseTransformer(if_node=node, global_context=self._global_context, local_context=self._local_context)
         _node: list[ast.stmt] = transformer.visit(node)
         transformed: list[ast.stmt] = []
 
