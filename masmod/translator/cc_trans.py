@@ -6,7 +6,7 @@
 #
 # File Created: 11/28/2022 09:47 pm
 #
-# Last Modified: 12/06/2022 05:15 pm
+# Last Modified: 12/07/2022 01:34 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -117,7 +117,7 @@ class CCTranslator:
         covariate_context: VarContext[Covariate],
         global_context: AnyContext,
         self_context: AnyContext,
-        result_variables: typing.List[str]
+        result_variables: list[str]
     ) -> None:
         self._cls_def = cls_def
         self._trans_functions = trans_functions
@@ -138,12 +138,12 @@ class CCTranslator:
 
         self._result_variables = result_variables
 
-    def translate(self) -> typing.List[str]:
+    def translate(self) -> list[str]:
         """主入口，翻译 python ast => cc syntax"""
-        translated: typing.List[str] = [
+        translated: list[str] = [
             *self.__include_headers(),
             "",  # empty line
-            "class __Module",
+            "class __Module : public IModule",
             "{",
             "public:"
         ]
@@ -157,11 +157,13 @@ class CCTranslator:
 
         translated.append("};")
 
+        translated.extend(self.__module_factory_function())
+
         return translated
 
-    def _do_translate_func(self, func_def: ast.FunctionDef) -> typing.List[str]:
+    def _do_translate_func(self, func_def: ast.FunctionDef) -> list[str]:
         """翻译函数体"""
-        translated: typing.List[str] = []
+        translated: list[str] = []
 
         ctx: Ctx = {}
 
@@ -190,7 +192,7 @@ class CCTranslator:
 
         translated.extend(["", *self._do_translate_func_signature(func_def, signature), "{"])
 
-        translated_body: typing.List[str] = [
+        translated_body: list[str] = [
             "", "// #region 从 self context 获取变量值", *self._retrieve_vars_from_self(), "// #endregion", ""
         ]
 
@@ -198,7 +200,7 @@ class CCTranslator:
         for stmt in func_def.body:
             translated_body.extend(self._do_translate_statement(stmt, ctx))
 
-        local_assign: typing.List[str] = ["", "// #region 将临时变量赋值至 context"]
+        local_assign: list[str] = ["", "// #region 将临时变量赋值至 context"]
         for var_name, var_type in ctx.items():
             if var_name not in signature.args.keys():
                 translated.append(f"{var_type.value} {var_name};")
@@ -216,9 +218,9 @@ class CCTranslator:
 
         return translated
 
-    def _do_translate_statement(self, statement: ast.stmt, ctx: Ctx) -> typing.List[str]:
+    def _do_translate_statement(self, statement: ast.stmt, ctx: Ctx) -> list[str]:
         """翻译 statement"""
-        translated: typing.List[str] = []
+        translated: list[str] = []
         if self.__locatable(statement):
             translated.append(f"// {self._source_code_lines[statement.lineno - 1].strip()}")
         if isinstance(statement, ast.Assign):
@@ -234,9 +236,9 @@ class CCTranslator:
 
         return translated
 
-    def _do_translate_assign(self, assign: ast.Assign, ctx: Ctx) -> typing.List[str]:
+    def _do_translate_assign(self, assign: ast.Assign, ctx: Ctx) -> list[str]:
         """翻译赋值 block"""
-        translated: typing.List[str] = []
+        translated: list[str] = []
 
         targets = assign.targets
 
@@ -263,9 +265,9 @@ class CCTranslator:
         translated.append(f"{target.v} = {value.v};")
         return translated
 
-    def _do_translate_if(self, if_: ast.If, ctx: Ctx, is_else_if: bool = False) -> typing.List[str]:
+    def _do_translate_if(self, if_: ast.If, ctx: Ctx, is_else_if: bool = False) -> list[str]:
         """翻译 if block"""
-        translated: typing.List[str] = []
+        translated: list[str] = []
 
         # if 的比较条件
         test_condition = self._do_eval_expr(if_.test, ctx)
@@ -477,13 +479,13 @@ class CCTranslator:
             return EvaluatedExpr(v="!=", token=compare_operator)
         self.__raise(compare_operator, NotImplementedError("尚不支持 compare_operator {0}".format(compare_operator)))
 
-    def _do_translate_func_signature(self, func_def: ast.FunctionDef, signature: FuncSignature) -> typing.List[str]:
+    def _do_translate_func_signature(self, func_def: ast.FunctionDef, signature: FuncSignature) -> list[str]:
         """翻译函数签名"""
-        translated: typing.List[str] = []
+        translated: list[str] = []
         if self.__locatable(func_def):
             translated.append(f"// {self._source_code_lines[func_def.lineno - 1].strip()}")
 
-        func_signature_args: typing.List[str] = []
+        func_signature_args: list[str] = []
         for arg_name, arg_type in signature.args.items():
             signature_arg = f"{arg_type.to_cc_type()} {arg_name}"
             func_signature_args.append(signature_arg)
@@ -528,9 +530,9 @@ class CCTranslator:
         for arg in func_def.args.kwonlyargs:
             self.__raise(arg, NotImplementedError("尚未实现 kwarg 的翻译"))
 
-    def _retrieve_vars_from_self(self) -> typing.List[str]:
+    def _retrieve_vars_from_self(self) -> list[str]:
         """生成代码从 self context 中获取变量 / 协变量"""
-        retrieved_vars: typing.List[str] = ["// 变量"]
+        retrieved_vars: list[str] = ["// 变量"]
         for var_name in self._var_context.keys():
             retrieved_vars.append(f"{mask_self_attr(var_name)} = std::any_cast<double>(self[\"{var_name}\"]);")
 
@@ -551,7 +553,7 @@ class CCTranslator:
         """检查 token 是否有 lineno 和 col offset"""
         return locatable(token)
 
-    def __include_headers(self) -> typing.List[str]:
+    def __include_headers(self) -> list[str]:
         """生成 include 头文件"""
         return [
             f"// Auto Generate at {datetime.now()}",
@@ -560,9 +562,15 @@ class CCTranslator:
             "#include <any>",
             "#include <map>",
             "#include <Eigen/Dense>",
+            "#include \"masmod/libc/headers.hpp\"",
             "",
             "using std::exp;",
             "using std::log;",
             "using std::pow;",
+            "using masmod::libc::modules::IModule;"
             ""
         ]
+
+    def __module_factory_function(self) -> list[str]:
+        """生成 module factory 的函数体"""
+        return ["", "__DYLIB_EXPORT IModule* __dylib_module_factory()", "{", "return new __Module();", "}", ""]

@@ -6,7 +6,7 @@
 #
 # File Created: 12/06/2022 01:21 pm
 #
-# Last Modified: 12/06/2022 04:32 pm
+# Last Modified: 12/07/2022 01:28 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -20,6 +20,7 @@ import pandas as pd
 from masmod.symbols import theta, omega, sigma, covariate, Expression
 from masmod.module import Module
 import masmod.functional as ff
+from masmod.compiler.cc_compile import CCCompiler
 
 
 class EmaxModel(Module):
@@ -62,5 +63,6 @@ class TestEmaxModel(unittest.TestCase):
     def test_parse(self) -> None:
         model = EmaxModel()
 
-        with open(".tmp/emax.cc", mode="w", encoding="utf-8") as f:
-            f.write(model.translated)
+        compiler = CCCompiler(model.translated, pathlib.Path(__file__).parent, uid="aabbcc")
+        result = compiler.compile()
+        print(result.target_file)
