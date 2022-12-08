@@ -32,7 +32,12 @@ CompilerToolchain = typing.Literal["gcc", "clang"]
 
 class CCCompiler:
 
-    def __init__(self, cc_source_code: str, temp_dir: pathlib.Path | None = None, uid: str | None = None) -> None:
+    def __init__(
+        self,
+        cc_source_code: str,
+        temp_dir: pathlib.Path | None = None,
+        uid: str | None = None
+    ) -> None:
         if temp_dir is None:
             temp_dir = pathlib.Path(tempfile.gettempdir())
         self._temp_dir = temp_dir
@@ -57,7 +62,9 @@ class CCCompiler:
             # detect clang
             _toolchain = "clang"
         else:
-            raise NotImplementedError("Not Supported platform: {0}".format(self.platform_system))
+            raise NotImplementedError(
+                "Not Supported platform: {0}".format(self.platform_system)
+            )
 
         self.toolchain = _toolchain
 

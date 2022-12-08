@@ -32,7 +32,9 @@ class VarContext(typing.Generic[T]):
     @property
     def generic_T(self) -> typing.Type[T]:
         if not hasattr(self, "__orig_class__"):
-            raise ValueError("构建 VarContext 必须要提供模版类型，类似于 ctx = VarContext[int | float]()")
+            raise ValueError(
+                "构建 VarContext 必须要提供模版类型，类似于 ctx = VarContext[int | float]()"
+            )
         _generic_T, = typing.get_args(self.__orig_class__)
         return _generic_T
 

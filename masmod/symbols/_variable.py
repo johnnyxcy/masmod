@@ -77,14 +77,22 @@ class SymVar(sympy.Symbol):
             _lower, _upper = bounds
 
             if _lower is not None and type(_lower) not in [float, int]:
-                raise TypeError("指定的 lower_bound 数据类型错误，必须是 float 或者 int，传入了 {0}".format(type(_lower)))
+                raise TypeError(
+                    "指定的 lower_bound 数据类型错误，必须是 float 或者 int，传入了 {0}".format(
+                        type(_lower)
+                    )
+                )
             elif _lower is None:
                 _lower = -np.inf
             else:
                 _lower = float(_lower)
 
             if _upper is not None and not type(_upper) in [float, int]:
-                raise TypeError("指定的 upper_bound 数据类型错误，必须是 float 或者 int，传入了 {0}".format(type(_upper)))
+                raise TypeError(
+                    "指定的 upper_bound 数据类型错误，必须是 float 或者 int，传入了 {0}".format(
+                        type(_upper)
+                    )
+                )
             elif _upper is None:
                 _upper = np.inf
             else:

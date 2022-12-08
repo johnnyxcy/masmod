@@ -39,7 +39,9 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
         self._local_context = local_context
         self._global_context = global_context
 
-        self._sympy_translator = ASTSympyTranslator(self_context=self_context, local_context=local_context)
+        self._sympy_translator = ASTSympyTranslator(
+            self_context=self_context, local_context=local_context
+        )
 
         self._partial_deriv_term_names_mapping: dict[str, list[str]] = {}
 
@@ -56,20 +58,32 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
             raise KeyError("{0} 没有生成对应的 partial derivative".format(var_name))
         return self._partial_deriv_term_names_mapping[var_name]
 
-    def _append_partial_derivative(self, expr: sympy.Expr, var_name_prefix: str) -> list[ast.Assign]:
+    def _append_partial_derivative(
+        self, expr: sympy.Expr, var_name_prefix: str
+    ) -> list[ast.Assign]:
         partial_deriv_assignments: list[ast.Assign] = []
         for var in self._var_context.values():
             if isinstance(var, SymVar):
-                diff_var_name = ast.Name(id=f"{var_name_prefix}_wrt_{var.name}")
+                diff_var_name = ast.Name(
+                    id=f"{var_name_prefix}_wrt_{var.name}"
+                )
 
-                if var_name_prefix not in self._partial_deriv_term_names_mapping.keys():
-                    self._partial_deriv_term_names_mapping[var_name_prefix] = [diff_var_name.id]
+                if var_name_prefix not in self._partial_deriv_term_names_mapping.keys(
+                ):
+                    self._partial_deriv_term_names_mapping[var_name_prefix] = [
+                        diff_var_name.id
+                    ]
                 else:
-                    self._partial_deriv_term_names_mapping[var_name_prefix].append(diff_var_name.id)
+                    self._partial_deriv_term_names_mapping[
+                        var_name_prefix].append(diff_var_name.id)
 
                 partial_deriv = expr.diff(var)
                 ast_expr = self._sympy_translator.translate(partial_deriv)
-                partial_deriv_assignments.append(ast.Assign(targets=(diff_var_name,), value=ast_expr, lineno=None))
+                partial_deriv_assignments.append(
+                    ast.Assign(
+                        targets=(diff_var_name,), value=ast_expr, lineno=None
+                    )
+                )
         return partial_deriv_assignments
 
     def visit_Return(self, node: ast.Return) -> typing.Any:
@@ -106,14 +120,19 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
             if isinstance(token, ast.Name):
                 if token.id not in self._local_context.keys():
                     rhs_expr = eval(
-                        ast.unparse(node.value), self._global_context.as_dict(), self._local_context.as_dict()
+                        ast.unparse(node.value),
+                        self._global_context.as_dict(),
+                        self._local_context.as_dict()
                     )
                 else:
                     rhs_expr = getattr(self._local_context, token.id)
                 self._local_context[token.id] = rhs_expr
                 if isinstance(rhs_expr, sympy.Expr):
                     diffs.extend(
-                        self._append_partial_derivative(expr=rhs_expr, var_name_prefix=mask_variable(token.id))
+                        self._append_partial_derivative(
+                            expr=rhs_expr,
+                            var_name_prefix=mask_variable(token.id)
+                        )
                     )
             else:
                 raise NotImplementedError()

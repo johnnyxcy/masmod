@@ -46,7 +46,9 @@ class Mu:
     def __init__(self, expr: sympy.Expr) -> None:
         for symbol in expr.free_symbols:
             if not isinstance(symbol, Theta):
-                raise TypeError("mu 必须关于 Theta 的表达式, {0} 不是 Theta".format(str(symbol)))
+                raise TypeError(
+                    "mu 必须关于 Theta 的表达式, {0} 不是 Theta".format(str(symbol))
+                )
             symbol.mu_ref = True
 
         self.expr = expr

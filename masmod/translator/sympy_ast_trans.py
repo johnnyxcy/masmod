@@ -24,7 +24,11 @@ SYMPY_LOG_FUNC_NAME = "__masmod__functional__log"
 
 class ASTSympyTranslator:
 
-    def __init__(self, local_context: AnyContext, self_context: AnyContext | None = None) -> None:
+    def __init__(
+        self,
+        local_context: AnyContext,
+        self_context: AnyContext | None = None
+    ) -> None:
         self._self_ctx = self_context
         self._local_ctx = local_context
 
@@ -57,12 +61,18 @@ class ASTSympyTranslator:
 
         if isinstance(expr, sympy.exp):
             exponent = expr.exp
-            return ast.Call(func=ast.Name(id=SYMPY_EXP_FUNC_NAME), args=[self.translate(exponent)], keywords=[])
+            return ast.Call(
+                func=ast.Name(id=SYMPY_EXP_FUNC_NAME),
+                args=[self.translate(exponent)],
+                keywords=[]
+            )
 
         if isinstance(expr, sympy.Add):
             translated: ast.AST = ast.Constant(value=0)
             for token in expr.args:
-                translated = ast.BinOp(left=translated, right=self.translate(token), op=ast.Add())
+                translated = ast.BinOp(
+                    left=translated, right=self.translate(token), op=ast.Add()
+                )
             return translated
 
         if isinstance(expr, sympy.Mul):
@@ -71,7 +81,11 @@ class ASTSympyTranslator:
                 if _expr is None:
                     _expr = self.translate(factor)
                 else:
-                    _expr = ast.BinOp(left=_expr, right=self.translate(factor), op=ast.Mult())
+                    _expr = ast.BinOp(
+                        left=_expr,
+                        right=self.translate(factor),
+                        op=ast.Mult()
+                    )
 
             if _expr is None:
                 raise ValueError("Invalid sympy.Mul factor")

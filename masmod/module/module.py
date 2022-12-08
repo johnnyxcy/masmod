@@ -116,7 +116,9 @@ class Module(BaseModule):
                 transformer.visit(part)
                 for result_var_name in result_variables:
                     partial_deriv_variables.extend(
-                        transformer.get_partial_deriv_term_names(mask_variable(result_var_name))
+                        transformer.get_partial_deriv_term_names(
+                            mask_variable(result_var_name)
+                        )
                     )
 
         result_variables.extend(partial_deriv_variables)
@@ -125,7 +127,11 @@ class Module(BaseModule):
         translator = CCTranslator(
             cls_def=_cls_def_ast,
             trans_functions={
-                "pred": FuncSignature(args={"t": ValueType.VALUE_TYPE_DOUBLE}, return_type=ValueType.VALUE_TYPE_VOID)
+                "pred":
+                    FuncSignature(
+                        args={"t": ValueType.VALUE_TYPE_DOUBLE},
+                        return_type=ValueType.VALUE_TYPE_VOID
+                    )
             },
             source_code=source_code,
             var_context=self._expr_context,

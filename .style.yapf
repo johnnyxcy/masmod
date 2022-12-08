@@ -3,7 +3,7 @@
 based_on_style = google
 
 # The column limit.
-column_limit=119
+column_limit=79
 
 # Use the Tab character for indentation.
 use_tabs=False

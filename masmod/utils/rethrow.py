@@ -21,7 +21,9 @@ def locatable(token: ast.AST) -> bool:
     return hasattr(token, "lineno") and token.lineno is not None
 
 
-def rethrow(source_code: str, token: ast.AST, error: BaseException) -> typing.NoReturn:
+def rethrow(
+    source_code: str, token: ast.AST, error: BaseException
+) -> typing.NoReturn:
     if locatable(token):
         lineno = token.lineno
         col_offset = token.col_offset
@@ -30,7 +32,9 @@ def rethrow(source_code: str, token: ast.AST, error: BaseException) -> typing.No
         indicator_line = [" "] * len(orig_code)
         indicator_line[col_offset - 1] = "^"
 
-        syntax_error_summary = "\n" + orig_code + "\n" + "".join(indicator_line)
+        syntax_error_summary = "\n" + orig_code + "\n" + "".join(
+            indicator_line
+        )
     else:
         syntax_error_summary = ast.unparse(token)
 

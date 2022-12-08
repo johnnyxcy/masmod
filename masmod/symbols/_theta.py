@@ -39,7 +39,11 @@ class Theta(SymVar):
         self._mu_ref = mu_ref
 
 
-def theta(init_value: ValueType | None = None, bounds: BoundsType | None = None, fixed: bool = False) -> Theta:
+def theta(
+    init_value: ValueType | None = None,
+    bounds: BoundsType | None = None,
+    fixed: bool = False
+) -> Theta:
     """
     生成固定效应参数 Theta
 

@@ -35,7 +35,9 @@ class FuncReturnVisitor(ast.NodeVisitor):
     @property
     def return_expr(self) -> ast.Return:
         if self._return_expr is None:
-            rethrow(self._source_code, self.func_def, ValueError("函数体内没有 return"))
+            rethrow(
+                self._source_code, self.func_def, ValueError("函数体内没有 return")
+            )
         return self._return_expr
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> typing.Any:

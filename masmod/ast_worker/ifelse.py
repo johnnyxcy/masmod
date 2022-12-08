@@ -41,10 +41,14 @@ IfTestVariableNameType = str
 MaskedVariableNameType = str
 
 # 实际的变量名 => list[tuple[if-条件的变量名，重命名的变量名]]
-HoistingMaskUpMappingType = dict[VariableNameType, list[tuple[IfTestVariableNameType, MaskedVariableNameType]]]
+HoistingMaskUpMappingType = dict[VariableNameType,
+                                    list[tuple[IfTestVariableNameType,
+                                                MaskedVariableNameType]]]
 
 
-def join_mask_mapping(left: HoistingMaskUpMappingType, right: HoistingMaskUpMappingType) -> HoistingMaskUpMappingType:
+def join_mask_mapping(
+    left: HoistingMaskUpMappingType, right: HoistingMaskUpMappingType
+) -> HoistingMaskUpMappingType:
     """合并两个 masking dict"""
     result_mapping: HoistingMaskUpMappingType = {}
     # for hoisting_var_name, conditional_mask_mp in left.items():
@@ -66,7 +70,9 @@ class IfElseVariableHoistingTransformer(ast.NodeTransformer):
     ELSE_MASKING = "__else"
     COND_MASKING = "__bool"
 
-    def __init__(self, if_node: ast.If | Literal["else"], hoisting: set[str]) -> None:
+    def __init__(
+        self, if_node: ast.If | Literal["else"], hoisting: set[str]
+    ) -> None:
         self._if_node: ast.If | Literal["else"] = if_node
         self._hoisting = hoisting
         self.mask_mp: HoistingMaskUpMappingType = {}
@@ -111,7 +117,11 @@ class IfElseTransformer(ast.NodeTransformer):
     """处理 if else 的变量提升"""
 
     def __init__(
-        self, source_code: str, if_node: ast.If, global_context: AnyContext, local_context: AnyContext
+        self,
+        source_code: str,
+        if_node: ast.If,
+        global_context: AnyContext,
+        local_context: AnyContext
     ) -> None:
         self._source_code = source_code
         self._if_node = if_node
@@ -129,7 +139,11 @@ class IfElseTransformer(ast.NodeTransformer):
         condition = self._hoist_if_test(node)
 
         if not isinstance(node.test, ast.Name):
-            rethrow(self._source_code, node, ValueError("必须要将 if 的 test hoist 为 local 变量"))
+            rethrow(
+                self._source_code,
+                node,
+                ValueError("必须要将 if 的 test hoist 为 local 变量")
+            )
 
         # 将 if 的条件作为需要预先定义的变量
         self._hoist_assignments[condition.variable_name] = condition.assignment
@@ -159,20 +173,28 @@ class IfElseTransformer(ast.NodeTransformer):
             elif_condition = self._hoist_if_test(elif_)
 
             if not isinstance(elif_.test, ast.Name):
-                rethrow(self._source_code, node, ValueError("必须要将 if 的 test hoist 为 local 变量"))
+                rethrow(
+                    self._source_code,
+                    node,
+                    ValueError("必须要将 if 的 test hoist 为 local 变量")
+                )
 
             # 赋值 test condition 的临时变量
-            self._hoist_assignments[elif_condition.variable_name] = elif_condition.assignment
+            self._hoist_assignments[elif_condition.variable_name
+                                   ] = elif_condition.assignment
             # 跳过 test condition 赋值的 assignment evaluation
             self.skip_eval_assignments.append(elif_condition.assignment)
             # ctx 添加 test condition 的 symbol 变量
-            self._local_ctx[elif_condition.variable_name] = elif_condition.variable_symbol
+            self._local_ctx[elif_condition.variable_name
+                           ] = elif_condition.variable_symbol
 
             elif_ctx = self._local_ctx.copy()
             # 处理 elif 的 body
             elif_visit_result = self._visit_if_body(elif_.body, elif_ctx)
             # 获取 elif 中额外赋值的变量，并获取与 hoisting_var_names 的交集，得到更新后的需要变量提升的变量
-            hoisting_var_names.intersection_update(set(elif_ctx.keys()) - set(self._local_ctx.keys()))
+            hoisting_var_names.intersection_update(
+                set(elif_ctx.keys()) - set(self._local_ctx.keys())
+            )
             # TODO: @xuchongyi 重新赋值逻辑
             # hoisting_var_names.update(elif_visit_result.overwriting_assignments.keys())
 
@@ -180,12 +202,16 @@ class IfElseTransformer(ast.NodeTransformer):
             # 处理 else 的 body
             else_visit_result = self._visit_if_body(elif_.orelse, else_ctx)
             # 获取 else 中额外赋值的变量，并获取与 hosting_var_names 的交集，更新变量提升
-            hoisting_var_names.intersection_update(set(else_ctx.keys()) - set(self._local_ctx.keys()))
+            hoisting_var_names.intersection_update(
+                set(else_ctx.keys()) - set(self._local_ctx.keys())
+            )
             # TODO: @xuchongyi 重新赋值逻辑
             # hoisting_var_names.update(else_visit_result.overwriting_assignments.keys())
 
             # 使用 transformer 将 elif 中需要变量提升的变量 mask 为 local 变量
-            elif_transformer = IfElseVariableHoistingTransformer(if_node=elif_, hoisting=hoisting_var_names)
+            elif_transformer = IfElseVariableHoistingTransformer(
+                if_node=elif_, hoisting=hoisting_var_names
+            )
             self._transform_if_else_variable_hoisting(
                 transformer=elif_transformer,
                 body=elif_.body,
@@ -193,12 +219,16 @@ class IfElseTransformer(ast.NodeTransformer):
                 skip_assignments=elif_visit_result.skip_eval_assignments
             )
             # 合并 masking
-            orelse_block_hoist_masking = join_mask_mapping(orelse_block_hoist_masking, elif_transformer.mask_mp)
+            orelse_block_hoist_masking = join_mask_mapping(
+                orelse_block_hoist_masking, elif_transformer.mask_mp
+            )
             # 更新 ctx 变量池
             self._local_ctx.update(elif_ctx)
 
             # 使用 transformer 将 else 中需要变量提升的变量 mask 为 local 变量
-            else_transformer = IfElseVariableHoistingTransformer(if_node="else", hoisting=hoisting_var_names)
+            else_transformer = IfElseVariableHoistingTransformer(
+                if_node="else", hoisting=hoisting_var_names
+            )
             self._transform_if_else_variable_hoisting(
                 transformer=else_transformer,
                 body=elif_.orelse,
@@ -206,7 +236,9 @@ class IfElseTransformer(ast.NodeTransformer):
                 skip_assignments=else_visit_result.skip_eval_assignments
             )
             # 合并 masking
-            orelse_block_hoist_masking = join_mask_mapping(orelse_block_hoist_masking, else_transformer.mask_mp)
+            orelse_block_hoist_masking = join_mask_mapping(
+                orelse_block_hoist_masking, else_transformer.mask_mp
+            )
             # 更新 ctx 变量池
             self._local_ctx.update(else_ctx)
 
@@ -219,12 +251,16 @@ class IfElseTransformer(ast.NodeTransformer):
             else_visit_result = self._visit_if_body(node.orelse, else_ctx)
 
             # 获取 else 中额外赋值的变量，并获取与 hosting_var_names 的交集，更新变量提升
-            hoisting_var_names.intersection_update(set(else_ctx.keys()) - set(self._local_ctx.keys()))
+            hoisting_var_names.intersection_update(
+                set(else_ctx.keys()) - set(self._local_ctx.keys())
+            )
             # TODO: @xuchongyi 重新赋值逻辑
             # hoisting_var_names.update(else_visit_result.overwriting_assignments.keys())
 
             # 使用 transformer 将 else 中需要变量提升的变量 mask 为 local 变量
-            else_transformer = IfElseVariableHoistingTransformer(if_node="else", hoisting=hoisting_var_names)
+            else_transformer = IfElseVariableHoistingTransformer(
+                if_node="else", hoisting=hoisting_var_names
+            )
             self._transform_if_else_variable_hoisting(
                 transformer=else_transformer,
                 body=node.orelse,
@@ -232,12 +268,16 @@ class IfElseTransformer(ast.NodeTransformer):
                 skip_assignments=else_visit_result.skip_eval_assignments
             )
             # 合并 masking
-            orelse_block_hoist_masking = join_mask_mapping(orelse_block_hoist_masking, else_transformer.mask_mp)
+            orelse_block_hoist_masking = join_mask_mapping(
+                orelse_block_hoist_masking, else_transformer.mask_mp
+            )
             # 更新 ctx 变量池
             self._local_ctx.update(else_ctx)
 
         # 使用 transformer 将 if 中需要变量提升的变量 mask 为 local 变量
-        if_body_transformer = IfElseVariableHoistingTransformer(if_node=node, hoisting=hoisting_var_names)
+        if_body_transformer = IfElseVariableHoistingTransformer(
+            if_node=node, hoisting=hoisting_var_names
+        )
         self._transform_if_else_variable_hoisting(
             transformer=if_body_transformer,
             body=node.body,
@@ -245,7 +285,9 @@ class IfElseTransformer(ast.NodeTransformer):
             skip_assignments=visit_if_result.skip_eval_assignments
         )
         # 合并 masking
-        hoist_masking = join_mask_mapping(if_body_transformer.mask_mp, orelse_block_hoist_masking)
+        hoist_masking = join_mask_mapping(
+            if_body_transformer.mask_mp, orelse_block_hoist_masking
+        )
         # 更新 ctx 变量池
         self._local_ctx.update(if_ctx)
 
@@ -268,34 +310,63 @@ class IfElseTransformer(ast.NodeTransformer):
                     rhs = ast.BinOp(
                         left=rhs,
                         op=ast.Add(),
-                        right=ast.BinOp(left=coef_prefix, op=ast.Mult(), right=ast.Name(id=masked_var_name))
+                        right=ast.BinOp(
+                            left=coef_prefix,
+                            op=ast.Mult(),
+                            right=ast.Name(id=masked_var_name)
+                        )
                     )
-                    sympy_rhs = sympy_rhs + sympy_coef_prefix * self._local_ctx[masked_var_name]
+                    sympy_rhs = sympy_rhs + sympy_coef_prefix * self._local_ctx[
+                        masked_var_name]
                 else:
                     # 如果是 if，那么他的 branch variable 是 (1 - b0) * (1 - b1) ... * (1 - b_k-1) * bk
                     masking_cond_var = ast.Name(id=masking_cond)
-                    coef = ast.BinOp(left=coef_prefix, op=ast.Mult(), right=masking_cond_var)
-                    sympy_coef = sympy_coef_prefix * self._local_ctx[masking_cond]
+                    coef = ast.BinOp(
+                        left=coef_prefix,
+                        op=ast.Mult(),
+                        right=masking_cond_var
+                    )
+                    sympy_coef = sympy_coef_prefix * self._local_ctx[
+                        masking_cond]
                     rhs = ast.BinOp(
                         left=rhs,
                         op=ast.Add(),
-                        right=ast.BinOp(left=coef, op=ast.Mult(), right=ast.Name(id=masked_var_name))
+                        right=ast.BinOp(
+                            left=coef,
+                            op=ast.Mult(),
+                            right=ast.Name(id=masked_var_name)
+                        )
                     )
-                    sympy_rhs = sympy_rhs + sympy_coef * self._local_ctx[masked_var_name]
+                    sympy_rhs = sympy_rhs + sympy_coef * self._local_ctx[
+                        masked_var_name]
 
                     coef_prefix = ast.BinOp(
                         left=coef_prefix,
                         op=ast.Mult(),
-                        right=ast.BinOp(left=ast.Constant(value=1), op=ast.Sub(), right=masking_cond_var)
+                        right=ast.BinOp(
+                            left=ast.Constant(value=1),
+                            op=ast.Sub(),
+                            right=masking_cond_var
+                        )
                     )
-                    sympy_coef_prefix = sympy_coef_prefix * (1 - self._local_ctx[masking_cond])
+                    sympy_coef_prefix = sympy_coef_prefix * (
+                        1 - self._local_ctx[masking_cond]
+                    )
 
-            transformed.append(ast.Assign(targets=(ast.Name(id=hoist_var_name),), value=rhs, lineno=None))
+            transformed.append(
+                ast.Assign(
+                    targets=(ast.Name(id=hoist_var_name),),
+                    value=rhs,
+                    lineno=None
+                )
+            )
             self._local_ctx[hoist_var_name] = sympy_rhs
 
         return transformed
 
-    def _visit_if_body(self, body: list[ast.stmt], ctx: AnyContext) -> VisitIfBodyResult:
+    def _visit_if_body(
+        self, body: list[ast.stmt], ctx: AnyContext
+    ) -> VisitIfBodyResult:
         """访问 if.body block，如果 block 中有 if，那么会生成子 transformer
 
         Args:
@@ -312,12 +383,16 @@ class IfElseTransformer(ast.NodeTransformer):
         overwriting_assignments: dict[str, ast.Assign] = {}
         for stmt_node in body:
             if isinstance(stmt_node, ast.If):
-                _transformer = IfElseTransformer(self._source_code, stmt_node, self._global_ctx, ctx)
+                _transformer = IfElseTransformer(
+                    self._source_code, stmt_node, self._global_ctx, ctx
+                )
                 transformed = _transformer.visit_If(stmt_node)
                 skip_assignments.extend(_transformer.skip_eval_assignments)
                 body_.extend(transformed)
             elif isinstance(stmt_node, ast.Assign):
-                overwriting_assignments.update(self._visit_assign_within_context(stmt_node, ctx))
+                overwriting_assignments.update(
+                    self._visit_assign_within_context(stmt_node, ctx)
+                )
                 body_.append(stmt_node)
             else:
                 body_.append(stmt_node)
@@ -331,7 +406,9 @@ class IfElseTransformer(ast.NodeTransformer):
             # overwriting_assignments=overwriting_assignments
         )
 
-    def _visit_assign_within_context(self, node: ast.Assign, ctx: AnyContext) -> dict[str, ast.Assign]:
+    def _visit_assign_within_context(self, node: ast.Assign,
+                                        ctx: AnyContext) -> dict[
+                                            str, ast.Assign]:
         overwriting_assignments: dict[str, ast.Assign] = {}
 
         if len(node.targets) == 1:
@@ -340,7 +417,11 @@ class IfElseTransformer(ast.NodeTransformer):
                 if target.id in ctx.keys():
                     # TODO: @xuchongyi 重新赋值逻辑
                     # overwriting_assignments[target.id] = node
-                    rethrow(self._source_code, node, NotImplementedError("暂不支持重新赋值的逻辑"))
+                    rethrow(
+                        self._source_code,
+                        node,
+                        NotImplementedError("暂不支持重新赋值的逻辑")
+                    )
         # eval assignment，赋值到 ctx
         exec(ast.unparse(node), self._global_ctx.as_dict(), ctx.as_dict())
         return overwriting_assignments
@@ -359,13 +440,19 @@ class IfElseTransformer(ast.NodeTransformer):
         for _, mp in transformer.mask_mp.items():
             for _, masked_id in mp:
                 self._hoist_assignments[masked_id] = ast.Assign(
-                    targets=(ast.Name(id=masked_id),), value=ast.Constant(value=0), lineno=None
+                    targets=(ast.Name(id=masked_id),),
+                    value=ast.Constant(value=0),
+                    lineno=None
                 )
                 ctx[masked_id] = sympy.Symbol(masked_id)
 
         for stmt in body:
             if isinstance(stmt, ast.Assign) and stmt not in skip_assignments:
-                exec(ast.unparse(stmt), self._global_ctx.as_dict(), ctx.as_dict())
+                exec(
+                    ast.unparse(stmt),
+                    self._global_ctx.as_dict(),
+                    ctx.as_dict()
+                )
 
     def _hoist_if_test(self, node: ast.If) -> HoistingCondition:
         cnt = 1
@@ -379,12 +466,24 @@ class IfElseTransformer(ast.NodeTransformer):
             pass
         elif isinstance(node.test, ast.Name):
             if node.test.id not in self._local_ctx.keys():
-                rethrow(self._source_code, node, NameError("变量名 {0} 没有定义".format(node.test.id)))
+                rethrow(
+                    self._source_code,
+                    node,
+                    NameError("变量名 {0} 没有定义".format(node.test.id))
+                )
         else:
-            rethrow(self._source_code, node, NotImplementedError("暂不支持的 if 判断"))
-        condition_assignment = ast.Assign(targets=(ast.Name(id=condition_target_id),), value=node.test, lineno=None)
+            rethrow(
+                self._source_code, node, NotImplementedError("暂不支持的 if 判断")
+            )
+        condition_assignment = ast.Assign(
+            targets=(ast.Name(id=condition_target_id),),
+            value=node.test,
+            lineno=None
+        )
 
         node.test = ast.Name(id=condition_target_id)
         return HoistingCondition(
-            variable_name=condition_target_id, assignment=condition_assignment, variable_symbol=condition_symbol
+            variable_name=condition_target_id,
+            assignment=condition_assignment,
+            variable_symbol=condition_symbol
         )

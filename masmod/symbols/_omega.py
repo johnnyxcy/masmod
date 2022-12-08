@@ -78,7 +78,11 @@ class Omega:
     """
 
     def __init__(
-        self, names: list[str], init_values: np.ndarray, lower_bounds: np.ndarray, upper_bounds: np.ndarray
+        self,
+        names: list[str],
+        init_values: np.ndarray,
+        lower_bounds: np.ndarray,
+        upper_bounds: np.ndarray
     ) -> None:
         self.__names = names
         self.init_values = init_values
@@ -105,7 +109,12 @@ class Omega:
                     lower_bounds[row][col] = cell
                     upper_bounds[row][col] = cell
 
-        return cls(names=names, init_values=init_values, lower_bounds=lower_bounds, upper_bounds=upper_bounds)
+        return cls(
+            names=names,
+            init_values=init_values,
+            lower_bounds=lower_bounds,
+            upper_bounds=upper_bounds
+        )
 
     @property
     def names(self) -> list[str]:
@@ -113,7 +122,11 @@ class Omega:
 
 
 @typing.overload
-def omega(init_omega: ValueType | None = None, bounds: BoundsType | None = None, fixed: bool = False) -> Eta:
+def omega(
+    init_omega: ValueType | None = None,
+    bounds: BoundsType | None = None,
+    fixed: bool = False
+) -> Eta:
     """生成单个 eta 对象
 
     Args:
@@ -128,9 +141,11 @@ def omega(init_omega: ValueType | None = None, bounds: BoundsType | None = None,
 
 
 @typing.overload
-def omega(init_omega: OmegaBlock,
-            bounds: list[BoundsType | None] | np.ndarray | None = None,
-            fixed: bool = False) -> list[Eta]:
+def omega(
+    init_omega: OmegaBlock,
+    bounds: list[BoundsType | None] | np.ndarray | None = None,
+    fixed: bool = False
+) -> list[Eta]:
     """通过下三角矩阵构建 eta 对象
 
     Args:
@@ -164,7 +179,8 @@ def omega(
 
 
 def omega(
-    init_omega: ValueType | OmegaBlock | np.ndarray | list[list[ValueType]] | None = None,
+    init_omega: ValueType | OmegaBlock | np.ndarray | list[list[ValueType]] |
+    None = None,
     bounds: BoundsType | np.ndarray | list[BoundsType | None] | None = None,
     fixed: bool = False
 ) -> Eta | list[Eta]:
@@ -195,10 +211,16 @@ def omega(
         # init_omega 是一个 ListLike 的对象 (List / np.ndarray)
         arr = np.array(init_omega, dtype=float)
         if len(arr.shape) != 2:
-            raise ValueError("只能通过二维数组构建 Omega 矩阵，而不是 {0} 维的数组".format(len(arr.shape)))
+            raise ValueError(
+                "只能通过二维数组构建 Omega 矩阵，而不是 {0} 维的数组".format(len(arr.shape))
+            )
 
         if arr.shape[0] != arr.shape[1]:
-            raise ValueError("只能通过方阵构建 Omega 矩阵，而不是 {0} x {1} 的矩阵".format(arr.shape[0], arr.shape[1]))
+            raise ValueError(
+                "只能通过方阵构建 Omega 矩阵，而不是 {0} x {1} 的矩阵".format(
+                    arr.shape[0], arr.shape[1]
+                )
+            )
 
         omega_mat = arr
 
@@ -221,7 +243,9 @@ def omega(
         _bounds = [bound for bound in bounds]
 
     if len(_bounds) != n_dim:
-        raise ValueError("指定的维数 {0} 与 bounds 的维数 {1} 不符".format(n_dim, len(_bounds)))
+        raise ValueError(
+            "指定的维数 {0} 与 bounds 的维数 {1} 不符".format(n_dim, len(_bounds))
+        )
 
     try:
         names = varname(multi_vars=n_dim > 1)
@@ -251,9 +275,19 @@ def omega(
     etas: list[Eta] = []
     omega_diag = np.diag(omega_mat)
     for index, init_value in enumerate(omega_diag):
-        etas.append(Eta(name=_names[index], init_value=init_value, bounds=_bounds[index], fixed=fixed))
+        etas.append(
+            Eta(
+                name=_names[index],
+                init_value=init_value,
+                bounds=_bounds[index],
+                fixed=fixed
+            )
+        )
 
-    omega = Omega.from_ndarray(array=omega_mat - np.diag(np.diag(omega_mat)) + np.diag(np.array(etas, dtype=object)))
+    omega = Omega.from_ndarray(
+        array=omega_mat - np.diag(np.diag(omega_mat)) +
+        np.diag(np.array(etas, dtype=object))
+    )
 
     for _eta in etas:
         _eta.omega = omega

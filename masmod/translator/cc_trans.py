@@ -153,7 +153,10 @@ class CCTranslator:
                 if part.name in self._trans_functions.keys():
                     translated.extend(self._do_translate_func(part))
             else:
-                self.__raise(part, NotImplementedError("尚不支持 class 功能 {0}".format(part)))
+                self.__raise(
+                    part,
+                    NotImplementedError("尚不支持 class 功能 {0}".format(part))
+                )
 
         translated.append("};")
 
@@ -170,7 +173,9 @@ class CCTranslator:
         # 处理函数签名
         signature: FuncSignature
         if func_def.name in self._trans_functions.keys():
-            signature = self._inject_self_to_signature(self._trans_functions[func_def.name])
+            signature = self._inject_self_to_signature(
+                self._trans_functions[func_def.name]
+            )
         else:
             signature = self._extract_func_signature(func_def)
 
@@ -183,17 +188,24 @@ class CCTranslator:
             ctx[mask_self_attr(var_name)] = ValueType.VALUE_TYPE_DOUBLE
 
         for cov_name, cov_obj in self._covariate_context.items():
-            ctx[mask_self_attr(cov_name)] = ValueType.from_dtype(cov_obj.series.dtype)
+            ctx[mask_self_attr(cov_name)
+               ] = ValueType.from_dtype(cov_obj.series.dtype)
 
         # for const_name, const_val in self._const_context.items():
         #     ctx[mask_self_attr(const_name)] = ValueType.from_constant(const_val)
 
         signature = self._inject_result_container_to_signature(signature)
 
-        translated.extend(["", *self._do_translate_func_signature(func_def, signature), "{"])
+        translated.extend(
+            ["", *self._do_translate_func_signature(func_def, signature), "{"]
+        )
 
         translated_body: list[str] = [
-            "", "// #region 从 self context 获取变量值", *self._retrieve_vars_from_self(), "// #endregion", ""
+            "",
+            "// #region 从 self context 获取变量值",
+            *self._retrieve_vars_from_self(),
+            "// #endregion",
+            ""
         ]
 
         # 处理函数内容
@@ -208,7 +220,9 @@ class CCTranslator:
         local_assign.append("// #endregion")
         translated.extend([*translated_body, *local_assign])
 
-        translated.extend(["", "// #region 将 reserved self attr 赋值至 __container"])
+        translated.extend(
+            ["", "// #region 将 reserved self attr 赋值至 __container"]
+        )
         for var_index, result_var_name in enumerate(self._result_variables):
             if result_var_name not in ctx.keys():
                 raise ValueError(f"没有输出 {result_var_name}")
@@ -218,11 +232,14 @@ class CCTranslator:
 
         return translated
 
-    def _do_translate_statement(self, statement: ast.stmt, ctx: Ctx) -> list[str]:
+    def _do_translate_statement(self, statement: ast.stmt,
+                                ctx: Ctx) -> list[str]:
         """翻译 statement"""
         translated: list[str] = []
         if self.__locatable(statement):
-            translated.append(f"// {self._source_code_lines[statement.lineno - 1].strip()}")
+            translated.append(
+                f"// {self._source_code_lines[statement.lineno - 1].strip()}"
+            )
         if isinstance(statement, ast.Assign):
             translated.extend(self._do_translate_assign(statement, ctx))
         elif isinstance(statement, ast.If):
@@ -232,7 +249,10 @@ class CCTranslator:
             # TODO: 这个会影响用户自定义 closure 函数，但是暂时不支持
             pass
         else:
-            self.__raise(statement, NotImplementedError("尚不支持 statement {0}".format(statement)))
+            self.__raise(
+                statement,
+                NotImplementedError("尚不支持 statement {0}".format(statement))
+            )
 
         return translated
 
@@ -255,9 +275,16 @@ class CCTranslator:
             _declared_typ = ctx[target.v]
             # 不允许重新定义类型
             # 特殊情况: 两个变量都是数值类型，那么使用 double 处理
-            if _declared_typ != value.typ and not (_declared_typ.is_numeric() and value.typ.is_numeric()):
+            if _declared_typ != value.typ and not (
+                _declared_typ.is_numeric() and value.typ.is_numeric()
+            ):
                 self.__raise(
-                    assign, TypeError("不允许重新指定变量 {0} 的类型 {1} => {2}".format(target.v, _declared_typ, value.typ))
+                    assign,
+                    TypeError(
+                        "不允许重新指定变量 {0} 的类型 {1} => {2}".format(
+                            target.v, _declared_typ, value.typ
+                        )
+                    )
                 )
             ctx[target.v] = ValueType.VALUE_TYPE_DOUBLE
         else:
@@ -265,7 +292,9 @@ class CCTranslator:
         translated.append(f"{target.v} = {value.v};")
         return translated
 
-    def _do_translate_if(self, if_: ast.If, ctx: Ctx, is_else_if: bool = False) -> list[str]:
+    def _do_translate_if(
+        self, if_: ast.If, ctx: Ctx, is_else_if: bool = False
+    ) -> list[str]:
         """翻译 if block"""
         translated: list[str] = []
 
@@ -273,10 +302,17 @@ class CCTranslator:
         test_condition = self._do_eval_expr(if_.test, ctx)
 
         if test_condition.typ is None or not test_condition.typ.is_numeric():
-            self.__raise(if_, TypeError("if 的比较条件必须是 bool 类型而不是 {0}".format(test_condition.typ)))
+            self.__raise(
+                if_,
+                TypeError(
+                    "if 的比较条件必须是 bool 类型而不是 {0}".format(test_condition.typ)
+                )
+            )
 
         if self.__locatable(if_):
-            translated.append(f"// {self._source_code_lines[if_.lineno - 1].strip()}")
+            translated.append(
+                f"// {self._source_code_lines[if_.lineno - 1].strip()}"
+            )
 
         branch_pref = "if" if not is_else_if else "else if "
         translated.extend([f"{branch_pref} ({test_condition.v})", "{"])
@@ -289,7 +325,9 @@ class CCTranslator:
 
         # 如果是 else if
         if len(if_.orelse) == 1 and isinstance(if_.orelse[0], ast.If):
-            translated.extend(self._do_translate_if(if_.orelse[0], ctx, is_else_if=True))
+            translated.extend(
+                self._do_translate_if(if_.orelse[0], ctx, is_else_if=True)
+            )
         else:  # 如果是 else
             translated.append("else {")
             for stmt in if_.orelse:
@@ -335,10 +373,16 @@ class CCTranslator:
                 self.__raise(expr, ValueError("无法获取正确的类型"))
 
             # 只能比较两个数值类型或者比较符号两边的类型相同
-            if not (left.typ.is_numeric() and right.typ.is_numeric()) and left.typ != right.typ:
+            if not (
+                left.typ.is_numeric() and right.typ.is_numeric()
+            ) and left.typ != right.typ:
                 self.__raise(expr, TypeError("表达式两边的类型不匹配"))
 
-            return EvaluatedExpr(v=f"{left.v} {ops.v} {right.v}", token=expr, typ=ValueType.VALUE_TYPE_INT)
+            return EvaluatedExpr(
+                v=f"{left.v} {ops.v} {right.v}",
+                token=expr,
+                typ=ValueType.VALUE_TYPE_INT
+            )
 
         # 如果是属性访问
         if isinstance(expr, ast.Attribute):
@@ -348,7 +392,9 @@ class CCTranslator:
             # 检查是否对 self 有非法访问
             if value.v == "self":
                 if attr not in self._self_ctx.keys():
-                    self.__raise(expr, AttributeError("对 self 的非法访问 {0}".format(attr)))
+                    self.__raise(
+                        expr, AttributeError("对 self 的非法访问 {0}".format(attr))
+                    )
 
                 # 获取 self 属性的类型
                 obj = self._self_ctx[attr]
@@ -356,13 +402,17 @@ class CCTranslator:
                 if isinstance(obj, SymVar) or isinstance(obj, Covariate):
                     typ = ctx[mask_self_attr(attr)]
                 else:
-                    evaluated_const = self._do_eval_constant(ast.Constant(value=obj))
+                    evaluated_const = self._do_eval_constant(
+                        ast.Constant(value=obj)
+                    )
                     if evaluated_const.typ is None:
                         raise ValueError("Not-Reachable")
                     typ = evaluated_const.typ
 
                 # 由于会对 self 中的所有字段执行重新赋值，这里直接返回 attr
-                return EvaluatedExpr(v=mask_self_attr(attr), typ=typ, token=expr)
+                return EvaluatedExpr(
+                    v=mask_self_attr(attr), typ=typ, token=expr
+                )
             elif value.v in self._global_ctx.keys():
                 return EvaluatedExpr(v=f"{value.v}.{attr}", token=expr)
             else:
@@ -374,23 +424,33 @@ class CCTranslator:
             func = self._do_eval_expr(expr.func, ctx)
 
             # 获取函数参数
-            args = ", ".join(map(lambda arg: self._do_eval_expr(arg, ctx).v, expr.args))
+            args = ", ".join(
+                map(lambda arg: self._do_eval_expr(arg, ctx).v, expr.args)
+            )
 
             # TODO:目前支持的函数只有 double 类型返回，如果后续有添加，重新补充逻辑
             # 如果函数名是 exp / log 这样的 reserved name
             if func in _functor_mapper.values():
-                return EvaluatedExpr(v=f"{func}({args})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
+                return EvaluatedExpr(
+                    v=f"{func}({args})",
+                    typ=ValueType.VALUE_TYPE_DOUBLE,
+                    token=expr
+                )
             elif func.v == "int":
                 # cast to int
 
                 if len(expr.args) != 1:
                     self.__raise(expr, ValueError("函数 int 只能有一个入参"))
-                return EvaluatedExpr(v=f"int({args})", typ=ValueType.VALUE_TYPE_INT, token=expr)
+                return EvaluatedExpr(
+                    v=f"int({args})", typ=ValueType.VALUE_TYPE_INT, token=expr
+                )
             else:  # 或者函数的地址和 masmod.functional 一致
                 func_obj = eval(func.v, self._global_ctx, {})
                 if id(func_obj) in _functor_mapper.keys():
                     return EvaluatedExpr(
-                        v=f"{_functor_mapper[id(func_obj)]}({args})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr
+                        v=f"{_functor_mapper[id(func_obj)]}({args})",
+                        typ=ValueType.VALUE_TYPE_DOUBLE,
+                        token=expr
                     )
                 self.__raise(expr, ValueError("函数 {0} 无法处理".format(func)))
 
@@ -411,31 +471,50 @@ class CCTranslator:
 
             # 特殊处理 pow `a ** b`
             if isinstance(expr.op, ast.Pow):
-                return EvaluatedExpr(v=f"pow({left.v}, {right.v})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
+                return EvaluatedExpr(
+                    v=f"pow({left.v}, {right.v})",
+                    typ=ValueType.VALUE_TYPE_DOUBLE,
+                    token=expr
+                )
             else:
                 op = self._do_eval_op(expr.op)
-                return EvaluatedExpr(v=f"({left.v}{op.v}{right.v})", typ=ValueType.VALUE_TYPE_DOUBLE, token=expr)
+                return EvaluatedExpr(
+                    v=f"({left.v}{op.v}{right.v})",
+                    typ=ValueType.VALUE_TYPE_DOUBLE,
+                    token=expr
+                )
 
         # 如果是一元运算，即 -a, +b
         if isinstance(expr, ast.UnaryOp):
             op = self._do_eval_unaryop(typing.cast(ast.unaryop, expr.op))
             oprand = self._do_eval_expr(expr.operand, ctx)
             # 根据 oprand 的具体类型
-            return EvaluatedExpr(v=f"{op.v}{oprand.v}", typ=oprand.typ, token=expr)
+            return EvaluatedExpr(
+                v=f"{op.v}{oprand.v}", typ=oprand.typ, token=expr
+            )
 
-        self.__raise(expr, NotImplementedError("尚不支持 expression {0}".format(expr)))
+        self.__raise(
+            expr, NotImplementedError("尚不支持 expression {0}".format(expr))
+        )
 
     def _do_eval_constant(self, constant: ast.Constant) -> EvaluatedExpr:
         """处理常数"""
         v: str
         typ: ValueType = ValueType.from_val(constant.value)
 
-        if typ in [ValueType.VALUE_TYPE_DOUBLE, ValueType.VALUE_TYPE_INT, ValueType.VALUE_TYPE_LONG]:
+        if typ in [
+            ValueType.VALUE_TYPE_DOUBLE,
+            ValueType.VALUE_TYPE_INT,
+            ValueType.VALUE_TYPE_LONG
+        ]:
             v = str(constant.value)
         elif typ == ValueType.VALUE_TYPE_STRING:
             v = constant.value
         else:
-            self.__raise(constant, NotImplementedError("暂不支持的常数类型 {0}".format(constant)))
+            self.__raise(
+                constant,
+                NotImplementedError("暂不支持的常数类型 {0}".format(constant))
+            )
 
         return EvaluatedExpr(v=v, typ=typ, token=constant)
 
@@ -450,9 +529,14 @@ class CCTranslator:
         elif isinstance(operator, ast.Div):
             return EvaluatedExpr(v="/", token=operator)
         elif isinstance(operator, ast.Pow):
-            self.__raise(operator, ValueError("无法通过 _do_translate_op 处理 power"))
+            self.__raise(
+                operator, ValueError("无法通过 _do_translate_op 处理 power")
+            )
 
-        self.__raise(operator, NotImplementedError("尚不支持 operator {0}".format(operator)))
+        self.__raise(
+            operator,
+            NotImplementedError("尚不支持 operator {0}".format(operator))
+        )
 
     def _do_eval_unaryop(self, unary_operator: ast.unaryop) -> EvaluatedExpr:
         """处理正负号 +, -"""
@@ -461,7 +545,12 @@ class CCTranslator:
         elif isinstance(unary_operator, ast.USub):
             return EvaluatedExpr(v="-", token=unary_operator)
 
-        self.__raise(unary_operator, NotImplementedError("尚不支持 unary_operator {0}".format(unary_operator)))
+        self.__raise(
+            unary_operator,
+            NotImplementedError(
+                "尚不支持 unary_operator {0}".format(unary_operator)
+            )
+        )
 
     def _do_eval_cmpop(self, compare_operator: ast.cmpop) -> EvaluatedExpr:
         """处理比较的符号 ==, >, >=, <, <=, !="""
@@ -477,13 +566,22 @@ class CCTranslator:
             return EvaluatedExpr(v="<=", token=compare_operator)
         elif isinstance(compare_operator, ast.NotEq):
             return EvaluatedExpr(v="!=", token=compare_operator)
-        self.__raise(compare_operator, NotImplementedError("尚不支持 compare_operator {0}".format(compare_operator)))
+        self.__raise(
+            compare_operator,
+            NotImplementedError(
+                "尚不支持 compare_operator {0}".format(compare_operator)
+            )
+        )
 
-    def _do_translate_func_signature(self, func_def: ast.FunctionDef, signature: FuncSignature) -> list[str]:
+    def _do_translate_func_signature(
+        self, func_def: ast.FunctionDef, signature: FuncSignature
+    ) -> list[str]:
         """翻译函数签名"""
         translated: list[str] = []
         if self.__locatable(func_def):
-            translated.append(f"// {self._source_code_lines[func_def.lineno - 1].strip()}")
+            translated.append(
+                f"// {self._source_code_lines[func_def.lineno - 1].strip()}"
+            )
 
         func_signature_args: list[str] = []
         for arg_name, arg_type in signature.args.items():
@@ -492,14 +590,20 @@ class CCTranslator:
 
         func_signature_args_str = ", ".join(func_signature_args)
 
-        translated.append(f"{signature.return_type.to_cc_type()} {func_def.name}({func_signature_args_str})")
+        translated.append(
+            f"{signature.return_type.to_cc_type()} {func_def.name}({func_signature_args_str})"
+        )
 
         return translated
 
-    def _extract_func_signature(self, func_def: ast.FunctionDef) -> FuncSignature:
+    def _extract_func_signature(
+        self, func_def: ast.FunctionDef
+    ) -> FuncSignature:
         self.__raise(func_def, NotImplementedError("暂不支持用户自定义 function"))
 
-    def _inject_self_to_signature(self, signature: FuncSignature) -> FuncSignature:
+    def _inject_self_to_signature(
+        self, signature: FuncSignature
+    ) -> FuncSignature:
         """向函数签名中添加 self context"""
         signature_ = deepcopy(signature)
         if "self" not in signature.args.keys():
@@ -509,7 +613,9 @@ class CCTranslator:
             }
         return signature_
 
-    def _inject_result_container_to_signature(self, signature: FuncSignature) -> FuncSignature:
+    def _inject_result_container_to_signature(
+        self, signature: FuncSignature
+    ) -> FuncSignature:
         """向函数签名中添加 __local 和 __container 参数"""
         if "__local" in signature.args.keys():
             raise ValueError("__local 是函数的预留字段，不能够用于函数签名")
@@ -521,11 +627,20 @@ class CCTranslator:
         signature.args["__container"] = ValueType.VALUE_TYPE_VEC_REF
         return signature
 
-    def _assert_func_signature_is_valid(self, func_def: ast.FunctionDef, signature: FuncSignature) -> None:
+    def _assert_func_signature_is_valid(
+        self, func_def: ast.FunctionDef, signature: FuncSignature
+    ) -> None:
         """检查函数签名是否合法"""
         for arg in func_def.args.args:
             if arg.arg not in signature.args.keys():
-                self.__raise(arg, ValueError("提供的函数签名 {0} 没有包含 {1}，无法处理对应参数".format(signature, arg.arg)))
+                self.__raise(
+                    arg,
+                    ValueError(
+                        "提供的函数签名 {0} 没有包含 {1}，无法处理对应参数".format(
+                            signature, arg.arg
+                        )
+                    )
+                )
 
         for arg in func_def.args.kwonlyargs:
             self.__raise(arg, NotImplementedError("尚未实现 kwarg 的翻译"))
@@ -534,7 +649,9 @@ class CCTranslator:
         """生成代码从 self context 中获取变量 / 协变量"""
         retrieved_vars: list[str] = ["// 变量"]
         for var_name in self._var_context.keys():
-            retrieved_vars.append(f"{mask_self_attr(var_name)} = std::any_cast<double>(self[\"{var_name}\"]);")
+            retrieved_vars.append(
+                f"{mask_self_attr(var_name)} = std::any_cast<double>(self[\"{var_name}\"]);"
+            )
 
         retrieved_vars.extend(["", "// 数据集中的协变量"])
         for var_name, cov_obj in self._covariate_context.items():
@@ -573,4 +690,11 @@ class CCTranslator:
 
     def __module_factory_function(self) -> list[str]:
         """生成 module factory 的函数体"""
-        return ["", "__DYLIB_EXPORT IModule* __dylib_module_factory()", "{", "return new __Module();", "}", ""]
+        return [
+            "",
+            "__DYLIB_EXPORT IModule* __dylib_module_factory()",
+            "{",
+            "return new __Module();",
+            "}",
+            ""
+        ]
