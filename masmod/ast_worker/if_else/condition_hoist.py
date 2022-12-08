@@ -6,7 +6,7 @@
 #
 # File Created: 12/07/2022 03:00 pm
 #
-# Last Modified: 12/08/2022 10:46 am
+# Last Modified: 12/08/2022 03:57 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -58,18 +58,30 @@ class IfElseConditionHoistTransformer(ast.NodeTransformer):
 
     def _do_visit_if(self, node: ast.If) -> dict[str, ast.Assign]:
         hoisted_assignments: dict[str, ast.Assign] = {}
-        # 尝试命名 if 条件的变量
-        cnt = 1
-        condition_target_id = f"{self.COND_MASKING}_{cnt}"
-        while condition_target_id in self._local_ctx.keys():
-            cnt += 1
-            condition_target_id = f"{self.COND_MASKING}_{cnt}"
-
-        # 以符号代替运行时 eval
-        condition_symbol = sympy.Symbol(condition_target_id)
 
         if isinstance(node.test, ast.Compare):
-            pass
+            # 尝试命名 if 条件的变量
+            cnt = 1
+            condition_target_id = f"{self.COND_MASKING}_{cnt}"
+            while condition_target_id in self._local_ctx.keys():
+                cnt += 1
+                condition_target_id = f"{self.COND_MASKING}_{cnt}"
+
+            # 以符号代替运行时 eval
+            condition_symbol = sympy.Symbol(condition_target_id)
+
+            # 将 node.test 赋值至 condition_target_id
+            condition_assignment = ast.Assign(
+                targets=(ast.Name(id=condition_target_id),),
+                value=node.test,
+                lineno=None
+            )
+
+            # 补充赋值语句至 hoisted_assignments
+            hoisted_assignments[condition_target_id] = condition_assignment
+
+            node.test = ast.Name(id=condition_target_id)
+            self._local_ctx[condition_target_id] = condition_symbol
         elif isinstance(node.test, ast.Name):
             # 检查如果 node.test 是变量的话，是否正确的存在于 context 中
             if node.test.id not in self._local_ctx.keys():
@@ -82,19 +94,6 @@ class IfElseConditionHoistTransformer(ast.NodeTransformer):
             rethrow(
                 self._source_code, node, NotImplementedError("暂不支持的 if 判断")
             )
-
-        # 将 node.test 赋值至 condition_target_id
-        condition_assignment = ast.Assign(
-            targets=(ast.Name(id=condition_target_id),),
-            value=node.test,
-            lineno=None
-        )
-
-        # 补充赋值语句至 hoisted_assignments
-        hoisted_assignments[condition_target_id] = condition_assignment
-
-        node.test = ast.Name(id=condition_target_id)
-        self._local_ctx[condition_target_id] = condition_symbol
 
         # 如果是 elif 的话递归处理 elif 的 condition 赋值
         if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):

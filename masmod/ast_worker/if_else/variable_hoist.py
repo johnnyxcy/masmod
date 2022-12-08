@@ -6,7 +6,7 @@
 #
 # File Created: 12/07/2022 02:56 pm
 #
-# Last Modified: 12/08/2022 03:36 pm
+# Last Modified: 12/08/2022 04:08 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -14,7 +14,7 @@
 ############################################################
 import ast
 from typing import Any
-
+import sympy
 import dataclasses
 
 from .condition_hoist import IfElseConditionHoistTransformer
@@ -111,6 +111,28 @@ class IfElseVariableHoistTransformer(ast.NodeTransformer):
         self.hoisting_assignments: dict[str, ast.Assign] = {}
 
         self.condition_branch_assignments: dict[str, ast.Assign] = {}
+
+    def visit_Assign(self, node: ast.Assign) -> Any:
+        lhs = node.targets
+        if len(lhs) == 1:
+            target, = lhs
+            if isinstance(target, ast.Name):
+                rhs = node.value
+                evaluated_rhs = eval(
+                    ast.unparse(rhs),
+                    self._global_ctx.as_dict(),
+                    self._local_ctx.as_dict()
+                )
+
+                # 如果是一个比较，需要使用符号重新处理
+                if isinstance(evaluated_rhs, sympy.core.relational.Relational):
+                    self._local_ctx[target.id] = sympy.Symbol(target.id)
+            else:
+                raise NotImplementedError()
+        else:
+            raise NotImplementedError()
+
+        return node
 
     def visit_If(self, node: ast.If) -> Any:
         visit_if_result = self._do_visit_if(node)

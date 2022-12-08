@@ -6,7 +6,7 @@
 #
 # File Created: 12/07/2022 03:13 pm
 #
-# Last Modified: 12/08/2022 01:25 pm
+# Last Modified: 12/08/2022 03:59 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -58,3 +58,6 @@ class TestConditionHoist(unittest.TestCase):
 
     def test_case_elif(self) -> None:
         self._do_test_case("elif")
+
+    def test_case_named_condition(self) -> None:
+        self._do_test_case("named_condition")

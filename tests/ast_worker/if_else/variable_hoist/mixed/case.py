@@ -6,17 +6,18 @@
 #
 # File Created: 12/08/2022 03:42 pm
 #
-# Last Modified: 12/08/2022 03:48 pm
+# Last Modified: 12/08/2022 04:09 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
 # Copyright (c) 2022 MaS Dev Team
 ############################################################
 def func(t):
+    t_greater_15 = t > 15
     if t > 10:
         if t > 20:
             v = 20
-        elif t > 15:
+        elif t_greater_15:
             v = 15
             v0 = -1
         else:
