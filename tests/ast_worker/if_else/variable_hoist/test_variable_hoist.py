@@ -6,7 +6,7 @@
 #
 # File Created: 12/08/2022 09:21 am
 #
-# Last Modified: 12/08/2022 03:40 pm
+# Last Modified: 12/08/2022 03:46 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -65,3 +65,6 @@ class TestVariableHoist(unittest.TestCase):
 
     def test_case_nohoist(self) -> None:
         self._do_test_case("nohoist")
+
+    def test_case_mixed(self) -> None:
+        self._do_test_case("mixed")
