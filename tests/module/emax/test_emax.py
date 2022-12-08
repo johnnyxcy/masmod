@@ -6,7 +6,7 @@
 #
 # File Created: 12/06/2022 01:21 pm
 #
-# Last Modified: 12/07/2022 01:28 pm
+# Last Modified: 12/08/2022 02:01 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -20,7 +20,6 @@ import pandas as pd
 from masmod.symbols import theta, omega, sigma, covariate, Expression
 from masmod.module import Module
 import masmod.functional as ff
-from masmod.compiler.cc_compile import CCCompiler
 
 
 class EmaxModel(Module):
@@ -35,7 +34,9 @@ class EmaxModel(Module):
 
         self.eps = sigma(0.09)
 
-        self.data = pd.read_csv(pathlib.Path(__file__).parent.joinpath("dataEmax.csv"))
+        self.data = pd.read_csv(
+            pathlib.Path(__file__).parent.joinpath("dataEmax.csv")
+        )
         self.data = self.data[self.data["MDV"] == 0].reset_index()
         self.wt = covariate(self.data["WT"])
         self.height = covariate(self.data["HEIGHT"])
@@ -43,7 +44,10 @@ class EmaxModel(Module):
     def pred(self, t) -> tuple[Expression, Expression]:
 
         if self.height > 180:
-            em = self.theta_em * (self.wt / 50)**0.75 * ff.exp(self.eta_em)
+            if self.height > 200:
+                em = self.theta_em * (self.wt / 50)**0.75 * ff.exp(self.eta_em)
+            else:
+                em = self.theta_em * (self.wt / 50)**0.8 * ff.exp(self.eta_em)
         else:
             em = self.theta_em * (1 + self.eta_em)
 
@@ -63,6 +67,16 @@ class TestEmaxModel(unittest.TestCase):
     def test_parse(self) -> None:
         model = EmaxModel()
 
-        compiler = CCCompiler(model.translated, pathlib.Path(__file__).parent, uid="aabbcc")
-        result = compiler.compile()
-        print(result.target_file)
+        with open(
+            pathlib.Path(__file__).parent.joinpath("emax_refined.py"),
+            mode="w",
+            encoding="utf-8"
+        ) as f:
+            f.write(f"#type: ignore\n{model.refined}")
+
+        with open(
+            pathlib.Path(__file__).parent.joinpath("emax.cc"),
+            mode="w",
+            encoding="utf-8"
+        ) as f:
+            f.write(model.translated)

@@ -6,7 +6,7 @@
 #
 # File Created: 12/05/2022 02:51 pm
 #
-# Last Modified: 12/06/2022 04:32 pm
+# Last Modified: 12/08/2022 01:53 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -38,7 +38,9 @@ class Warfarin(Module):
         self.eps_prop = sigma(0.0104)
         self.eps_add = sigma(0.554)
 
-        data = pd.read_csv(pathlib.Path(__file__).parent.joinpath("warfarin.csv"))
+        data = pd.read_csv(
+            pathlib.Path(__file__).parent.joinpath("warfarin.csv")
+        )
         self.data = data[data['DVID'] == 1]
         self.dose = covariate(self.data["DOSE"])
 
@@ -52,7 +54,9 @@ class Warfarin(Module):
         if alag > t:
             ipred = 0
         else:
-            ipred = self.dose / v * ka / (ka - k) * (exp(-k * (t - alag)) - exp(-ka * (t - alag)))
+            ipred = self.dose / v * ka / (ka - k) * (
+                exp(-k * (t - alag)) - exp(-ka * (t - alag))
+            )
 
         y = ipred * (1 + self.eps_prop) + self.eps_add
 
@@ -64,5 +68,16 @@ class TestWarfarinModel(unittest.TestCase):
     def test_parse(self) -> None:
         model = Warfarin()
 
-        with open(".tmp/war.cc", mode="w", encoding="utf-8") as f:
+        with open(
+            pathlib.Path(__file__).parent.joinpath("warfarin_refined.py"),
+            mode="w",
+            encoding="utf-8"
+        ) as f:
+            f.write(f"#type: ignore\n{model.refined}")
+
+        with open(
+            pathlib.Path(__file__).parent.joinpath("warfarin.cc"),
+            mode="w",
+            encoding="utf-8"
+        ) as f:
             f.write(model.translated)

@@ -1,22 +1,23 @@
 # _*_ coding: utf-8 _*_
-"""
-File: masmod/masmod/ast_worker/autodiff.py
+############################################################
+# File: masmod/masmod/ast_worker/autodiff.py
+#
+# Author: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# File Created: 12/01/2022 11:23 am
+#
+# Last Modified: 12/08/2022 02:01 pm
+#
+# Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
+#
+# Copyright (c) 2022 MaS Dev Team
+############################################################
 
-Author: Chongyi Xu <johnny.xcy1997@outlook.com>
-
-File Created: 12/01/2022 11:23 am
-
-Last Modified: 12/06/2022 04:23 pm
-
-Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
-
-Copyright (c) 2022 MaS Dev Team
-"""
 import ast
 import typing
 import sympy
 
-from .ifelse import IfElseTransformer
+from .if_else import IfElseTransformer
 
 from ..symbols import SymVar, VarContext, AnyContext
 from ..translator import ASTSympyTranslator
@@ -92,7 +93,6 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
     def visit_If(self, node: ast.If) -> typing.Any:
         transformer = IfElseTransformer(
             source_code=self._source_code,
-            if_node=node,
             global_context=self._global_context,
             local_context=self._local_context
         )
@@ -101,7 +101,8 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
 
         for child_node in _node:
             if isinstance(child_node, ast.Assign):
-                if child_node not in transformer.skip_eval_assignments:
+                if child_node not in transformer.variable_hoist_transformer.hoisting_assignments.values(
+                ):
                     transformed.extend(self.visit_Assign(child_node))
                 else:
                     transformed.append(child_node)

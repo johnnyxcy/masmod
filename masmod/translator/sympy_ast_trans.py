@@ -6,7 +6,7 @@
 #
 # File Created: 11/30/2022 09:09 am
 #
-# Last Modified: 12/06/2022 04:32 pm
+# Last Modified: 12/08/2022 01:49 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -68,15 +68,23 @@ class ASTSympyTranslator:
             )
 
         if isinstance(expr, sympy.Add):
-            translated: ast.AST = ast.Constant(value=0)
+            translated: ast.expr | None = None
             for token in expr.args:
-                translated = ast.BinOp(
-                    left=translated, right=self.translate(token), op=ast.Add()
-                )
+                if translated is None:
+                    translated = self.translate(token)
+                else:
+                    translated = ast.BinOp(
+                        left=translated,
+                        op=ast.Add(),
+                        right=self.translate(token),
+                    )
+            if translated is None:
+                raise ValueError("Invalid sympy.Add factor")
+
             return translated
 
         if isinstance(expr, sympy.Mul):
-            _expr: ast.AST | None = None
+            _expr: ast.expr | None = None
             for factor in expr.as_ordered_factors():
                 if _expr is None:
                     _expr = self.translate(factor)

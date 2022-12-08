@@ -6,7 +6,7 @@
 #
 # File Created: 12/01/2022 11:23 am
 #
-# Last Modified: 12/06/2022 04:31 pm
+# Last Modified: 12/07/2022 03:11 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -31,6 +31,7 @@ class Module(BaseModule):
 
     def __init__(self) -> None:
         super().__init__()
+        self.__refined: str | None = None
         self.__translated: str | None = None
 
     def __post_init__(self) -> None:
@@ -42,6 +43,12 @@ class Module(BaseModule):
         if self.__translated is None:
             raise AttributeError("Invalid Attribute")
         return self.__translated
+
+    @property
+    def refined(self) -> str:
+        if self.__refined is None:
+            raise AttributeError("Invalid Attribute")
+        return self.__refined
 
     def __getattribute__(self, __name: str) -> typing.Any:
         if __name == "pred":
@@ -122,6 +129,8 @@ class Module(BaseModule):
                     )
 
         result_variables.extend(partial_deriv_variables)
+
+        self.__refined = ast.unparse(_cls_def_ast)
 
         _self_context = self._self_context.copy()
         translator = CCTranslator(
