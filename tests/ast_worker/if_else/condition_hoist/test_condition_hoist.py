@@ -6,7 +6,7 @@
 #
 # File Created: 12/07/2022 03:13 pm
 #
-# Last Modified: 12/08/2022 03:59 pm
+# Last Modified: 12/09/2022 02:34 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -61,3 +61,6 @@ class TestConditionHoist(unittest.TestCase):
 
     def test_case_named_condition(self) -> None:
         self._do_test_case("named_condition")
+
+    def test_case_and_or(self) -> None:
+        self._do_test_case("and_or")

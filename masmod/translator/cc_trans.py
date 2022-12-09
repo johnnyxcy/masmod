@@ -6,7 +6,7 @@
 #
 # File Created: 11/28/2022 09:47 pm
 #
-# Last Modified: 12/07/2022 01:34 pm
+# Last Modified: 12/09/2022 02:54 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -82,12 +82,12 @@ class ValueType(enum.Enum):
         return typ
 
 
-Ctx = typing.Dict[str, ValueType]
+Ctx = dict[str, ValueType]
 
 
 @dataclass
 class FuncSignature:
-    args: typing.Dict[str, ValueType]  # must be in-order
+    args: dict[str, ValueType]  # must be in-order
     return_type: ValueType
 
 
@@ -101,7 +101,7 @@ class EvaluatedExpr:
         return self.v
 
 
-_functor_mapper: typing.Final[typing.Dict[int, str]] = {
+_functor_mapper: typing.Final[dict[int, str]] = {
     id(exp): "exp", id(log): "log"
 }
 
@@ -111,7 +111,7 @@ class CCTranslator:
     def __init__(
         self,
         cls_def: ast.ClassDef,
-        trans_functions: typing.Dict[str, FuncSignature],
+        trans_functions: dict[str, FuncSignature],
         source_code: str,
         var_context: VarContext[SymVar],
         covariate_context: VarContext[Covariate],
@@ -493,6 +493,20 @@ class CCTranslator:
                 v=f"{op.v}{oprand.v}", typ=oprand.typ, token=expr
             )
 
+        # 如果是
+        if isinstance(expr, ast.BoolOp):
+            op = self._do_eval_boolop(typing.cast(ast.boolop, expr.op))
+
+            fragments: list[str] = []
+            for val in expr.values:
+                fragments.append(f"({self._do_eval_expr(val, ctx).v})")
+
+            return EvaluatedExpr(
+                v=op.v.join(fragments),
+                typ=ValueType.VALUE_TYPE_INT,
+                token=expr
+            )
+
         self.__raise(
             expr, NotImplementedError("尚不支持 expression {0}".format(expr))
         )
@@ -536,6 +550,19 @@ class CCTranslator:
         self.__raise(
             operator,
             NotImplementedError("尚不支持 operator {0}".format(operator))
+        )
+
+    def _do_eval_boolop(self, bool_operator: ast.boolop) -> EvaluatedExpr:
+        if isinstance(bool_operator, ast.And):
+            return EvaluatedExpr(v="&&", token=bool_operator)
+        elif isinstance(bool_operator, ast.Or):
+            return EvaluatedExpr(v="||", token=bool_operator)
+
+        self.__raise(
+            bool_operator,
+            NotImplementedError(
+                "尚不支持 bool_operator {0}".format(bool_operator)
+            )
         )
 
     def _do_eval_unaryop(self, unary_operator: ast.unaryop) -> EvaluatedExpr:

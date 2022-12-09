@@ -6,7 +6,7 @@
 #
 # File Created: 12/07/2022 03:00 pm
 #
-# Last Modified: 12/09/2022 01:20 pm
+# Last Modified: 12/09/2022 02:36 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -61,7 +61,8 @@ class IfElseConditionHoistTransformer(ast.NodeTransformer):
     def _do_visit_if(self, node: ast.If) -> dict[str, ast.Assign]:
         hoisted_assignments: dict[str, ast.Assign] = {}
 
-        if isinstance(node.test, ast.Compare):
+        if isinstance(node.test,ast.Compare) or \
+            isinstance(node.test, ast.BoolOp):
             # 尝试命名 if 条件的变量
             cnt = 1
             condition_target_id = f"{self.COND_MASKING}_{cnt}"
