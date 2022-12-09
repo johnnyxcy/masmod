@@ -6,7 +6,7 @@
 #
 # File Created: 12/01/2022 11:23 am
 #
-# Last Modified: 12/09/2022 01:42 pm
+# Last Modified: 12/09/2022 02:13 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -133,6 +133,7 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
                 else:
                     rhs_expr = getattr(self._local_context, token.id)
                 self._local_context[token.id] = rhs_expr
+
                 if isinstance(rhs_expr, sympy.Expr):
                     diffs.extend(
                         self._append_partial_derivative(

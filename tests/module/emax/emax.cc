@@ -1,4 +1,4 @@
-// Auto Generate at 2022-12-09 13:45:12.476491
+// Auto Generate at 2022-12-09 14:13:42.025840
 #include <cmath>
 #include <string>
 #include <any>
@@ -39,6 +39,7 @@ int __bool_1__em__wrt_theta_et50;
 double __bool_1__em__wrt_eta_em;
 int __bool_1__em__wrt_eta_et50;
 int __bool_1__em__wrt_eps;
+double __else__bool_2__em;
 double __bool_2__em;
 double et;
 int et__wrt_theta_em;
@@ -88,9 +89,9 @@ em__wrt_eps = 0;
 __bool_1 = self__height > 180;
 __bool_2 = 0;
 __bool_1__em = 0;
-__bool_1__em__wrt_theta_em = ((0.053182958969449884*pow(self__wt, 0.75))*exp(self__eta_em));
+__bool_1__em__wrt_theta_em = ((1+(-1*__bool_2))+(((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*exp(self__eta_em)));
 __bool_1__em__wrt_theta_et50 = 0;
-__bool_1__em__wrt_eta_em = (((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*exp(self__eta_em));
+__bool_1__em__wrt_eta_em = ((((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*self__theta_em)*exp(self__eta_em));
 __bool_1__em__wrt_eta_et50 = 0;
 __bool_1__em__wrt_eps = 0;
 // if self.height > 180:
@@ -98,6 +99,7 @@ __bool_1__em__wrt_eps = 0;
 if (__bool_1)
 {
 __bool_2 = self__wt > 100;
+__else__bool_2__em = 0;
 __bool_2__em = 0;
 // if self.wt > 100:
 // if self.wt > 100:
@@ -107,15 +109,17 @@ if (__bool_2)
 __bool_2__em = ((self__theta_em*pow((self__wt/50), 0.8))*exp(self__eta_em));
 }
 else {
+// em = self.theta_em
+__else__bool_2__em = self__theta_em;
 }
-__bool_1__em = ((__bool_2*__bool_2__em)+((1-__bool_2)*em));
+__bool_1__em = ((__bool_2*__bool_2__em)+((1-__bool_2)*__else__bool_2__em));
 }
 else {
 }
 em = ((__bool_1*__bool_1__em)+((1-__bool_1)*em));
-em__wrt_theta_em = ((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*exp(self__eta_em))+(((0.053182958969449884*pow(self__wt, 0.75))*(1+(-1*__bool_1)))*exp(self__eta_em)));
+em__wrt_theta_em = ((__bool_1*((1+(-1*__bool_2))+(((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*exp(self__eta_em))))+(((0.053182958969449884*pow(self__wt, 0.75))*(1+(-1*__bool_1)))*exp(self__eta_em)));
 em__wrt_theta_et50 = 0;
-em__wrt_eta_em = (((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em)));
+em__wrt_eta_em = (((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))+(((((0.043734482957731115*pow(self__wt, 0.8))*__bool_1)*__bool_2)*self__theta_em)*exp(self__eta_em)));
 em__wrt_eta_et50 = 0;
 em__wrt_eps = 0;
 // et = self.theta_et50 * ff.exp(self.eta_et50)
@@ -127,25 +131,25 @@ et__wrt_eta_et50 = (self__theta_et50*exp(self__eta_et50));
 et__wrt_eps = 0;
 // effect = em * t / (et + t)
 effect = ((em*t)/(et+t));
-effect__wrt_theta_em = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*exp(self__eta_em))+(((0.053182958969449884*pow(self__wt, 0.75))*(1+(-1*__bool_1)))*exp(self__eta_em))));
-effect__wrt_theta_et50 = ((((-1*t)*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
-effect__wrt_eta_em = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))));
-effect__wrt_eta_et50 = (((((-1*t)*self__theta_et50)*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
+effect__wrt_theta_em = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*((__bool_1*((1+(-1*__bool_2))+(((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*exp(self__eta_em))))+(((0.053182958969449884*pow(self__wt, 0.75))*(1+(-1*__bool_1)))*exp(self__eta_em))));
+effect__wrt_theta_et50 = ((((-1*t)*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*((__bool_1*((self__theta_em*(1+(-1*__bool_2)))+((((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*self__theta_em)*exp(self__eta_em))))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
+effect__wrt_eta_em = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*(((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))+(((((0.043734482957731115*pow(self__wt, 0.8))*__bool_1)*__bool_2)*self__theta_em)*exp(self__eta_em))));
+effect__wrt_eta_et50 = (((((-1*t)*self__theta_et50)*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*((__bool_1*((self__theta_em*(1+(-1*__bool_2)))+((((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*self__theta_em)*exp(self__eta_em))))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
 effect__wrt_eps = 0;
 // ipred = effect
 ipred = effect;
-ipred__wrt_theta_em = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*exp(self__eta_em))+(((0.053182958969449884*pow(self__wt, 0.75))*(1+(-1*__bool_1)))*exp(self__eta_em))));
-ipred__wrt_theta_et50 = ((((-1*t)*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
-ipred__wrt_eta_em = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))));
-ipred__wrt_eta_et50 = (((((-1*t)*self__theta_et50)*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
+ipred__wrt_theta_em = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*((__bool_1*((1+(-1*__bool_2))+(((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*exp(self__eta_em))))+(((0.053182958969449884*pow(self__wt, 0.75))*(1+(-1*__bool_1)))*exp(self__eta_em))));
+ipred__wrt_theta_et50 = ((((-1*t)*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*((__bool_1*((self__theta_em*(1+(-1*__bool_2)))+((((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*self__theta_em)*exp(self__eta_em))))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
+ipred__wrt_eta_em = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*(((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))+(((((0.043734482957731115*pow(self__wt, 0.8))*__bool_1)*__bool_2)*self__theta_em)*exp(self__eta_em))));
+ipred__wrt_eta_et50 = (((((-1*t)*self__theta_et50)*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*((__bool_1*((self__theta_em*(1+(-1*__bool_2)))+((((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*self__theta_em)*exp(self__eta_em))))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
 ipred__wrt_eps = 0;
 // y = effect * (1 + self.eps)
 y = (effect*(1+self__eps));
-y__wrt_theta_em = (((t*(1+self__eps))*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*exp(self__eta_em))+(((0.053182958969449884*pow(self__wt, 0.75))*(1+(-1*__bool_1)))*exp(self__eta_em))));
-y__wrt_theta_et50 = (((((-1*t)*(1+self__eps))*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
-y__wrt_eta_em = (((t*(1+self__eps))*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))));
-y__wrt_eta_et50 = ((((((-1*t)*self__theta_et50)*(1+self__eps))*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
-y__wrt_eps = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*(((((0.053182958969449884*pow(self__wt, 0.75))*__bool_1)*self__theta_em)*exp(self__eta_em))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))));
+y__wrt_theta_em = (((t*(1+self__eps))*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*((__bool_1*((1+(-1*__bool_2))+(((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*exp(self__eta_em))))+(((0.053182958969449884*pow(self__wt, 0.75))*(1+(-1*__bool_1)))*exp(self__eta_em))));
+y__wrt_theta_et50 = (((((-1*t)*(1+self__eps))*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*((__bool_1*((self__theta_em*(1+(-1*__bool_2)))+((((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*self__theta_em)*exp(self__eta_em))))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
+y__wrt_eta_em = (((t*(1+self__eps))*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*(((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))+(((((0.043734482957731115*pow(self__wt, 0.8))*__bool_1)*__bool_2)*self__theta_em)*exp(self__eta_em))));
+y__wrt_eta_et50 = ((((((-1*t)*self__theta_et50)*(1+self__eps))*pow((t+(self__theta_et50*exp(self__eta_et50))), -2))*((__bool_1*((self__theta_em*(1+(-1*__bool_2)))+((((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*self__theta_em)*exp(self__eta_em))))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))))*exp(self__eta_et50));
+y__wrt_eps = ((t*pow((t+(self__theta_et50*exp(self__eta_et50))), -1))*((__bool_1*((self__theta_em*(1+(-1*__bool_2)))+((((0.043734482957731115*pow(self__wt, 0.8))*__bool_2)*self__theta_em)*exp(self__eta_em))))+((((0.053182958969449884*pow(self__wt, 0.75))*self__theta_em)*(1+(-1*__bool_1)))*exp(self__eta_em))));
 // return ipred, y
 
 // #region 将临时变量赋值至 context
@@ -170,6 +174,7 @@ __local["__bool_1__em__wrt_theta_et50"] = __bool_1__em__wrt_theta_et50;
 __local["__bool_1__em__wrt_eta_em"] = __bool_1__em__wrt_eta_em;
 __local["__bool_1__em__wrt_eta_et50"] = __bool_1__em__wrt_eta_et50;
 __local["__bool_1__em__wrt_eps"] = __bool_1__em__wrt_eps;
+__local["__else__bool_2__em"] = __else__bool_2__em;
 __local["__bool_2__em"] = __bool_2__em;
 __local["et"] = et;
 __local["et__wrt_theta_em"] = et__wrt_theta_em;

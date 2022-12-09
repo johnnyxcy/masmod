@@ -3,11 +3,7 @@ def func(t):
     __bool_1 = t > 10
     __bool_2 = t > 5
     __bool_3 = t < 0
-    __else__bool_3__v = 0
-    __bool_3__v = 0
-    __bool_2__v = 0
     __bool_4 = 0
-    __bool_1__v = 0
     if __bool_1:
         __bool_4 = t > 20
         __elset_greater_15__v = 0
@@ -20,23 +16,19 @@ def func(t):
             v0 = -1
         else:
             __elset_greater_15__v = 10
-        __bool_1__v = __bool_4 * __bool_4__v + (1 - __bool_4) * t_greater_15 * t_greater_15__v + (1 - __bool_4) * (1 - t_greater_15) * __elset_greater_15__v
+        v = __bool_4 * __bool_4__v + (1 - __bool_4) * t_greater_15 * t_greater_15__v + (1 - __bool_4) * (1 - t_greater_15) * __elset_greater_15__v
     elif __bool_2:
         __bool_4 = t > 6
-        __else__bool_4__v = 0
-        __bool_4__v = 0
         if __bool_4:
             v2 = -999
-            __bool_4__v = 6
+            v = 6
         else:
             v0 = 999
-            __else__bool_4__v = 5
-        __bool_2__v = __bool_4 * __bool_4__v + (1 - __bool_4) * __else__bool_4__v
+            v = 5
     elif __bool_3:
-        __bool_3__v = -1
+        v = -1
     else:
-        __else__bool_3__v = 0
-    v = __bool_1 * __bool_1__v + (1 - __bool_1) * __bool_2 * __bool_2__v + (1 - __bool_1) * (1 - __bool_2) * __bool_3 * __bool_3__v + (1 - __bool_1) * (1 - __bool_2) * (1 - __bool_3) * __else__bool_3__v
+        v = 0
     __bool_5 = t > 10
     __bool_6 = t < 0
     __else__bool_6__p = 0

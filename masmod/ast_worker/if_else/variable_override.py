@@ -6,7 +6,7 @@
 #
 # File Created: 12/08/2022 03:51 pm
 #
-# Last Modified: 12/09/2022 01:47 pm
+# Last Modified: 12/09/2022 02:13 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -38,9 +38,6 @@ class VisitIfResult:
 
 
 class IfElseVariableOverrideTransformer(ast.NodeTransformer):
-    """
-    !IMPORTANT 已知问题: override 中嵌套 if/else 存在问题
-    """
 
     def __init__(
         self,

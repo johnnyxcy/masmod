@@ -6,7 +6,7 @@
 #
 # File Created: 12/08/2022 01:32 pm
 #
-# Last Modified: 12/09/2022 01:40 pm
+# Last Modified: 12/09/2022 02:10 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -53,10 +53,24 @@ class IfElseTransformer(ast.NodeTransformer):
 
         variable_override_transformed: list[ast.stmt] = []
         for stmt in variable_hoist_transformed:
-            transformed_stmt = self.variable_override_transformer.visit(stmt)
+            bypass_eval = False
+            if isinstance(stmt, ast.Assign):
+                if len(stmt.targets) == 1:
+                    target, = stmt.targets
+                    if isinstance(target, ast.Name):
+                        if target.id in self.variable_hoist_transformer.hoisting_assignments.keys(
+                        ):
+                            bypass_eval = True
 
-            if isinstance(transformed_stmt, typing.Iterable):
-                variable_override_transformed.extend(transformed_stmt)
+            if not bypass_eval:
+                transformed_stmt = self.variable_override_transformer.visit(
+                    stmt
+                )
+
+                if isinstance(transformed_stmt, typing.Iterable):
+                    variable_override_transformed.extend(transformed_stmt)
+                else:
+                    variable_override_transformed.append(transformed_stmt)
             else:
-                variable_override_transformed.append(transformed_stmt)
+                variable_override_transformed.append(stmt)
         return variable_override_transformed

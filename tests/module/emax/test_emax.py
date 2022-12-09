@@ -6,7 +6,7 @@
 #
 # File Created: 12/06/2022 01:21 pm
 #
-# Last Modified: 12/09/2022 01:45 pm
+# Last Modified: 12/09/2022 02:13 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -47,6 +47,8 @@ class EmaxModel(Module):
         if self.height > 180:
             if self.wt > 100:
                 em = self.theta_em * (self.wt / 50)**0.8 * ff.exp(self.eta_em)
+            else:
+                em = self.theta_em
 
         et = self.theta_et50 * ff.exp(self.eta_et50)
 
