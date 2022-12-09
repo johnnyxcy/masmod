@@ -6,7 +6,7 @@
 #
 # File Created: 12/06/2022 01:21 pm
 #
-# Last Modified: 12/08/2022 02:01 pm
+# Last Modified: 12/09/2022 01:45 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -43,13 +43,10 @@ class EmaxModel(Module):
 
     def pred(self, t) -> tuple[Expression, Expression]:
 
+        em = self.theta_em * (self.wt / 50)**0.75 * ff.exp(self.eta_em)
         if self.height > 180:
-            if self.height > 200:
-                em = self.theta_em * (self.wt / 50)**0.75 * ff.exp(self.eta_em)
-            else:
+            if self.wt > 100:
                 em = self.theta_em * (self.wt / 50)**0.8 * ff.exp(self.eta_em)
-        else:
-            em = self.theta_em * (1 + self.eta_em)
 
         et = self.theta_et50 * ff.exp(self.eta_et50)
 

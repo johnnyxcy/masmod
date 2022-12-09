@@ -6,7 +6,7 @@
 #
 # File Created: 12/07/2022 03:00 pm
 #
-# Last Modified: 12/08/2022 03:57 pm
+# Last Modified: 12/09/2022 01:20 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -39,8 +39,9 @@ class IfElseConditionHoistTransformer(ast.NodeTransformer):
         self._global_context = global_context
         self._local_ctx = local_context
 
+        self.branches: set[str] = set()
         # dict[condition-variable-name => assignment-ast-token]
-        self.condition_branch_assignments: dict[str, ast.Assign] = {}
+        self.hoisting_assignments: dict[str, ast.Assign] = {}
 
     def visit_Assign(self, node: ast.Assign) -> Any:
         # 通过 exec 更新 context
@@ -52,9 +53,10 @@ class IfElseConditionHoistTransformer(ast.NodeTransformer):
         return node
 
     def visit_If(self, node: ast.If) -> Any:
-        self.condition_branch_assignments = self._do_visit_if(node)
+        self.hoisting_assignments = self._do_visit_if(node)
+        self.branches.update(self.hoisting_assignments.keys())
 
-        return [*self.condition_branch_assignments.values(), node]
+        return [*self.hoisting_assignments.values(), node]
 
     def _do_visit_if(self, node: ast.If) -> dict[str, ast.Assign]:
         hoisted_assignments: dict[str, ast.Assign] = {}
@@ -90,6 +92,7 @@ class IfElseConditionHoistTransformer(ast.NodeTransformer):
                     node,
                     NameError("变量名 {0} 没有定义".format(node.test.id))
                 )
+            self.branches.add(node.test.id)
         else:
             rethrow(
                 self._source_code, node, NotImplementedError("暂不支持的 if 判断")

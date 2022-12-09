@@ -6,7 +6,7 @@
 #
 # File Created: 12/01/2022 11:23 am
 #
-# Last Modified: 12/08/2022 02:01 pm
+# Last Modified: 12/09/2022 01:42 pm
 #
 # Modified By: Chongyi Xu <johnny.xcy1997@outlook.com>
 #
@@ -96,7 +96,12 @@ class AutoDiffNodeTransformer(ast.NodeTransformer):
             global_context=self._global_context,
             local_context=self._local_context
         )
-        _node: list[ast.stmt] = transformer.visit(node)
+        transformed_node: typing.Any = transformer.visit(node)
+
+        if isinstance(transformed_node, typing.Iterable):
+            _node = transformed_node
+        else:
+            _node = [transformed_node]
         transformed: list[ast.stmt] = []
 
         for child_node in _node:

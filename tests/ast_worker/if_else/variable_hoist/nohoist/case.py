@@ -3,8 +3,6 @@ def func(t):
 
     if t > 180:
         v1 = 120
-    else:
-        v2 = -1
 
     return v
 
